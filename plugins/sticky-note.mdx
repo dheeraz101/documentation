@@ -1,0 +1,64 @@
+---
+title: Sticky Note
+description: "Draggable, colorful sticky notes with auto-save"
+---
+
+## Overview
+
+Create colorful sticky notes that persist across sessions. Notes are draggable, editable, and support 6 colors.
+
+<Frame>
+  <img src="/images/plugins/sticky-note.png" alt="Sticky Note plugin" />
+</Frame>
+
+## Features
+
+- 🎨 **6 colors** — Yellow, Green, Blue, Pink, Orange, Purple
+- ✏️ **Editable** — type directly in the note
+- 🖱️ **Draggable** — move notes anywhere on the board
+- 💾 **Auto-save** — text, position, and color persist
+- 🗑️ **Delete** — click the × button
+- ➕ **New notes** — "+ New Note" button (bottom-right)
+
+## Events
+
+| Event | Payload | When |
+|-------|---------|------|
+| `sticky-note:created` | `{ id: string }` | A new note is created |
+| `sticky-note:deleted` | `{ id: string }` | A note is deleted |
+
+## Installation
+
+Included by default in `plugins.json`:
+
+```json
+{
+  "id": "sticky-note",
+  "url": "./plugins/sticky-note/plugin.js",
+  "name": "Sticky Note"
+}
+```
+
+Or install manually via the Plugin Manager.
+
+## Storage Keys
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `sticky-notes` | `Array<Note>` | All saved notes |
+
+```typescript
+interface Note {
+  id: string;
+  text: string;
+  color: number;      // 0-5
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+```
+
+## File
+
+`plugins/sticky-note/plugin.js`

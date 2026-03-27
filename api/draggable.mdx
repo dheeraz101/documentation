@@ -1,0 +1,62 @@
+---
+title: api.makeDraggable()
+description: "Make elements draggable by mouse"
+---
+
+## Overview
+
+`api.makeDraggable(element)` makes any DOM element draggable on the board.
+
+```javascript
+const box = document.createElement('div');
+box.className = 'plugin-box';
+api.boardEl.appendChild(box);
+api.makeDraggable(box);
+```
+
+## Signature
+
+```javascript
+api.makeDraggable(element: HTMLElement): void
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `element` | `HTMLElement` | The element to make draggable |
+
+## Behavior
+
+- **Drag handle:** the element itself — click and drag anywhere
+- **Excluded from drag:** `<input>`, `<textarea>`, `<button>` — clicks pass through normally
+- **Positioning:** sets `top` and `left` CSS properties
+
+<Warning>
+  The element must have `position: absolute` for dragging to work. The `plugin-box` class includes this automatically.
+</Warning>
+
+## Full Example
+
+```javascript
+export function setup(api) {
+  const box = document.createElement('div');
+  box.className = 'plugin-box';
+  box.style.cssText = `
+    left: 200px;
+    top: 200px;
+    width: 300px;
+    padding: 20px;
+  `;
+  box.innerHTML = '<p>Drag me!</p>';
+
+  api.boardEl.appendChild(box);
+  api.makeDraggable(box);
+
+  // Save position after drag
+  box.addEventListener('mouseup', () => {
+    api.storage.set('my-plugin-pos', {
+      left: parseInt(box.style.left),
+      top: parseInt(box.style.top)
+    });
+  });
+}
+```

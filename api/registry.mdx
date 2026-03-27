@@ -1,0 +1,84 @@
+---
+title: api.registry
+description: "Low-level plugin registry access"
+---
+
+## Overview
+
+`api.registry` provides low-level access to the plugin registry. Primarily used by the Plugin Manager.
+
+## Methods
+
+### `registry.getAll()`
+
+Returns a deep copy of the registry array.
+
+```javascript
+const plugins = api.registry.getAll();
+// → [{ id: 'hello', name: 'Hello Box', enabled: true, ... }, ...]
+```
+
+**Returns:** `Array<PluginDefinition>`
+
+```typescript
+interface PluginDefinition {
+  id: string;
+  name: string;
+  url: string;
+  enabled: boolean;
+}
+```
+
+### `registry.save(newRegistry)`
+
+Overwrites the entire registry and persists to localStorage.
+
+```javascript
+const plugins = api.registry.getAll();
+plugins.push({ id: 'new', name: 'New', url: './new.js', enabled: true });
+api.registry.save(plugins);
+```
+
+## Management Methods
+
+These are attached directly to `api` (not `api.registry`):
+
+### `api.togglePlugin(id)`
+
+Enable or disable a plugin.
+
+```javascript
+await api.togglePlugin('my-plugin');
+```
+
+**Returns:** `Promise<boolean>` — `true` if successful
+
+### `api.deletePlugin(id)`
+
+Permanently remove a plugin.
+
+```javascript
+api.deletePlugin('my-plugin');
+```
+
+**Returns:** `boolean` — `true` if successful
+
+### `api.installPlugin(id, url, name)`
+
+Install a plugin from URL.
+
+```javascript
+await api.installPlugin(
+  'my-plugin',
+  'https://raw.githubusercontent.com/user/repo/main/plugin.js',
+  'My Plugin'
+);
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `id` | `string` | Unique plugin ID |
+| `url` | `string` | URL to the `.js` file |
+| `name` | `string` | Display name (defaults to `id`) |
+
+**Returns:** `Promise<boolean>` — `true` if installed, `false` if ID already exists

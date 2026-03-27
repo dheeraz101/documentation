@@ -1,0 +1,187 @@
+---
+title: Build Your First Plugin
+description: "Step-by-step guide to creating a Blank Board plugin"
+---
+
+This guide walks you through building a complete plugin from scratch.
+
+## Prerequisites
+
+- A modern browser
+- A text editor
+- Blank Board running locally (`npx serve`)
+
+## Step 1: Create the File
+
+```
+plugins/
+  └── my-plugin/
+       └── plugin.js
+```
+
+## Step 2: Export `meta` and `setup`
+
+```javascript
+// plugins/my-plugin/plugin.js
+
+export const meta = {
+  id: 'my-plugin',
+  name: 'My First Plugin',
+  version: '0.1.0',
+  compat: '>=1.0.0'
+};
+
+export function setup(api) {
+  // Your code here
+}
+```
+
+### The `meta` Object
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `id` | ✅ | Unique identifier. Use kebab-case |
+| `name` | ✅ | Display name in Plugin Manager |
+| `version` | ✅ | Semantic version |
+| `compat` | ❌ | Core version compatibility range |
+
+## Step 3: Build Your UI
+
+```javascript
+export function setup(api) {
+  const box = document.createElement('div');
+  box.className = 'plugin-box';
+  box.style.cssText = `
+    left: 100px;
+    top: 100px;
+    width: 300px;
+    padding: 20px;
+    background: white;
+    border-radius: 12px;
+  `;
+
+  box.innerHTML = `
+    <h3 style="margin:0 0 10px 0;">My Plugin</h3>
+    <p>Hello from my first plugin!</p>
+  `;
+
+  api.boardEl.appendChild(box);
+  api.makeDraggable(box);
+}
+```
+
+## Step 4: Add Storage
+
+```javascript
+export function setup(api) {
+  const box = document.createElement('div');
+  box.className = 'plugin-box';
+
+  // Restore saved position
+  const saved = api.storage.get('my-plugin-pos');
+  box.style.left = (saved?.left || 100) + 'px';
+  box.style.top = (saved?.top || 100) + 'px';
+  box.style.width = '300px';
+  box.style.padding = '20px';
+
+  box.innerHTML = '<p>Drag me — I remember my position!</p>';
+
+  // Save position on drag end
+  box.addEventListener('mouseup', () => {
+    api.storage.set('my-plugin-pos', {
+      left: parseInt(box.style.left),
+      top: parseInt(box.style.top)
+    });
+  });
+
+  api.boardEl.appendChild(box);
+  api.makeDraggable(box);
+}
+```
+
+## Step 5: Add Event Communication
+
+```javascript
+export function setup(api) {
+  const box = document.createElement('div');
+  box.className = 'plugin-box';
+  box.style.cssText = 'left:200px; top:200px; width:260px; padding:24px; text-align:center;';
+
+  let count = api.storage.get('my-counter') || 0;
+
+  box.innerHTML = `
+    <div style="font-size:14px; color:#888;">Counter</div>
+    <div id="count" style="font-size:48px; font-weight:700; margin:16px 0;">${count}</div>
+    <button id="inc" style="padding:10px 24px; font-size:18px; cursor:pointer;">+</button>
+  `;
+
+  box.querySelector('#inc').addEventListener('click', () => {
+    count++;
+    box.querySelector('#count').textContent = count;
+    api.storage.set('my-counter', count);
+    api.bus.emit('counter:changed', { value: count });
+  });
+
+  api.boardEl.appendChild(box);
+  api.makeDraggable(box);
+}
+```
+
+## Step 6: Handle Cleanup
+
+```javascript
+export function setup(api) {
+  const box = document.createElement('div');
+  // ... build UI ...
+
+  api.bus.on('plugin:unload', (id) => {
+    if (id === meta.id) box.remove();
+  });
+}
+
+export function teardown() {
+  console.log('Plugin cleaned up');
+}
+```
+
+## Step 7: Install and Test
+
+### Option A: Manual Install
+
+1. Right-click the board → Plugin Manager
+2. Scroll to "Install manually by URL"
+3. Enter ID and URL: `http://localhost:3000/plugins/my-plugin/plugin.js`
+4. Click **Install from URL**
+
+### Option B: Edit plugins.json
+
+```json
+{
+  "id": "my-plugin",
+  "url": "./plugins/my-plugin/plugin.js",
+  "name": "My Plugin"
+}
+```
+
+Clear localStorage and reload.
+
+## Debugging
+
+Open browser DevTools:
+
+```javascript
+// Access the core API
+window.blankBoard.api.registry.getAll();
+
+// Emit test events
+window.blankBoard.bus.emit('test', { hello: true });
+```
+
+<CardGroup cols={2}>
+  <Card title="Persisting Data" icon="database" href="/guides/persisting-data">
+    Deep dive into storage patterns
+  </Card>
+  <Card title="Plugin Communication" icon="comments" href="/guides/plugin-communication">
+    Events, hooks, and patterns
+  </Card>
+</CardGroup>

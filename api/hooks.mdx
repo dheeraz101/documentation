@@ -1,0 +1,47 @@
+---
+title: api.hooks
+description: "Hook system for plugin extensibility"
+---
+
+## Overview
+
+Hooks let plugins expose extension points that other plugins can register handlers for.
+
+## Methods
+
+### `api.registerHook(name, handler)`
+
+Register a hook handler.
+
+```javascript
+api.registerHook('toolbar:add-button', (config) => {
+  const btn = document.createElement('button');
+  btn.textContent = config.label;
+  return btn;
+});
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `name` | `string` | Hook name |
+| `handler` | `function` | Callback receiving payload, returning a value |
+
+### `api.useHook(name, payload)`
+
+Call all registered handlers. Returns their return values.
+
+```javascript
+const results = api.useHook('toolbar:add-button', { label: 'Click me' });
+// → [buttonElement, buttonElement, ...]
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `name` | `string` | Hook name |
+| `payload` | `any` | Data passed to each handler |
+
+**Returns:** `Array<any>`
+
+## See Also
+
+- [Hooks concept](/concepts/hooks) — detailed guide with examples

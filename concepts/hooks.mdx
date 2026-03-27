@@ -1,0 +1,107 @@
+---
+title: Hooks
+description: "Let plugins extend other plugins"
+---
+
+## Overview
+
+Hooks allow plugins to expose **extension points** that other plugins can register handlers for. Unlike events (fire-and-forget), hooks collect return values.
+
+```javascript
+// Toolbar plugin registers a hook
+api.registerHook('toolbar:add-button', (config) => {
+  const btn = document.createElement('button');
+  btn.textContent = config.label;
+  toolbar.appendChild(btn);
+  return btn;
+});
+
+// Another plugin uses the hook
+const buttons = api.useHook('toolbar:add-button', {
+  label: 'My Action',
+  action: () => alert('clicked!')
+});
+// buttons → [buttonElement, ...]
+```
+
+## API
+
+### `api.registerHook(name, handler)`
+
+Register a function that responds to a named hook.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `name` | `string` | Hook name (use `namespace:action` format) |
+| `handler` | `function` | Callback receiving payload, can return a value |
+
+```javascript
+api.registerHook('sidebar:add-item', (config) => {
+  const item = document.createElement('div');
+  item.textContent = config.label;
+  sidebarEl.appendChild(item);
+  return item;
+});
+```
+
+### `api.useHook(name, payload)`
+
+Call all registered handlers for a hook. Returns an array of their return values.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `name` | `string` | Hook name to invoke |
+| `payload` | `any` | Data passed to each handler |
+
+**Returns:** `Array<any>` — return values from each handler (empty array if none registered).
+
+```javascript
+const items = api.useHook('sidebar:add-item', {
+  label: 'Settings',
+  icon: '⚙️',
+  onClick: () => openSettings()
+});
+// items → [divElement, divElement, ...]
+```
+
+## Hooks vs Events
+
+| | Events | Hooks |
+|---|--------|-------|
+| **Purpose** | Notify | Extend |
+| **Return values** | No | Yes |
+| **Direction** | One-way broadcast | Request → responses |
+| **Use case** | "Something happened" | "Add your thing to my thing" |
+
+## Example: Extensible Toolbar
+
+```javascript
+// === toolbar/plugin.js ===
+export function setup(api) {
+  const toolbar = document.createElement('div');
+  toolbar.style.cssText = 'display:flex; gap:8px; padding:12px;';
+
+  // Let other plugins add buttons
+  api.registerHook('toolbar:add-button', (config) => {
+    const btn = document.createElement('button');
+    btn.textContent = config.label;
+    btn.onclick = config.action;
+    toolbar.appendChild(btn);
+    return btn;
+  });
+
+  // After all plugins loaded, trigger hooks
+  setTimeout(() => {
+    api.useHook('toolbar:add-button', { label: 'Default', action: () => {} });
+  }, 100);
+}
+
+// === my-plugin/plugin.js ===
+export function setup(api) {
+  // Add a button to the toolbar
+  api.useHook('toolbar:add-button', {
+    label: '🚀 Launch',
+    action: () => console.log('launched!')
+  });
+}
+```

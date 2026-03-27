@@ -1,0 +1,95 @@
+---
+title: Event Bus
+description: "Pub/sub system for plugin-to-plugin communication"
+---
+
+## Overview
+
+The Event Bus (`api.bus`) is a simple pub/sub system that lets plugins communicate without importing each other.
+
+```javascript
+// Plugin A emits an event
+api.bus.emit('todo:added', { text: 'Buy milk', done: false });
+
+// Plugin B listens for it
+api.bus.on('todo:added', (data) => {
+  console.log('New todo:', data.text);
+});
+```
+
+## API
+
+### `bus.on(event, callback)`
+
+Subscribe to an event.
+
+```javascript
+api.bus.on('theme:changed', (data) => {
+  document.body.style.background = data.color;
+});
+```
+
+### `bus.off(event, callback)`
+
+Unsubscribe. Must pass the same function reference.
+
+```javascript
+function handler(data) { /* ... */ }
+
+api.bus.on('my-event', handler);
+// later:
+api.bus.off('my-event', handler);
+```
+
+### `bus.emit(event, data)`
+
+Publish an event to all subscribers.
+
+```javascript
+api.bus.emit('theme:changed', { color: '#1a1a2e' });
+```
+
+## Naming Convention
+
+Use `namespace:action` to avoid collisions between plugins:
+
+| ✅ Good | ❌ Bad |
+|---------|--------|
+| `todo:added` | `added` |
+| `kanban:card:moved` | `move` |
+| `theme:changed` | `change` |
+| `sticky-note:created` | `new` |
+
+## Built-in Events
+
+| Event | Payload | When |
+|-------|---------|------|
+| `plugin:unload` | `pluginId` | Plugin is toggled off or deleted |
+
+## Example: Cross-Plugin Communication
+
+```javascript
+// === todo-list/plugin.js ===
+export function setup(api) {
+  const todos = [];
+
+  function addTodo(text) {
+    todos.push({ text, done: false });
+    api.bus.emit('todo:added', { text, count: todos.length });
+  }
+}
+
+// === stats/plugin.js ===
+export function setup(api) {
+  let count = 0;
+
+  api.bus.on('todo:added', (data) => {
+    count = data.count;
+    renderStats();
+  });
+}
+```
+
+<Warning>
+  Plugins should never directly import or reference each other. Always use the event bus for communication.
+</Warning>

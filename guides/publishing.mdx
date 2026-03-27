@@ -1,0 +1,74 @@
+---
+title: Publishing Your Plugin
+description: "Share your plugin with the Blank Board community"
+---
+
+## Prerequisites
+
+Before publishing, make sure your plugin:
+
+- ✅ Exports valid `meta` and `setup`
+- ✅ Cleans up DOM on `plugin:unload`
+- ✅ Uses prefixed storage keys
+- ✅ Has no external dependencies (vanilla JS only)
+- ✅ Works in modern browsers
+
+## Step 1: Host Your Plugin
+
+Upload `plugin.js` somewhere publicly accessible. GitHub raw URLs are recommended:
+
+```
+https://raw.githubusercontent.com/youruser/your-repo/main/plugin.js
+```
+
+<Note>
+  The URL must be directly accessible — not behind a login or download page.
+</Note>
+
+## Step 2: Fork the Community Repo
+
+Fork [blank-board-plugins](https://github.com/dheeraz101/Empty_Plugins) on GitHub.
+
+## Step 3: Add Your Entry
+
+Edit `plugins.json` and add:
+
+```json
+{
+  "id": "your-plugin-id",
+  "name": "Your Plugin Name",
+  "url": "https://raw.githubusercontent.com/youruser/your-repo/main/plugin.js",
+  "description": "A short description of what your plugin does.",
+  "author": "your-github-username",
+  "icon": "🧩"
+}
+```
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `id` | ✅ | Unique kebab-case identifier |
+| `name` | ✅ | Display name |
+| `url` | ✅ | Public URL to the `.js` file |
+| `description` | ✅ | What the plugin does |
+| `author` | ✅ | Your GitHub username |
+| `icon` | ❌ | Emoji icon (defaults to 📦) |
+
+## Step 4: Open a Pull Request
+
+1. Commit your changes
+2. Push to your fork
+3. Open a PR against `main`
+4. Use the title: `add: your-plugin-name`
+
+## Plugin Guidelines
+
+- ✅ **Self-contained** — use the event bus, not imports
+- ✅ **Clean up** — handle `plugin:unload`
+- ✅ **Prefix storage** — `your-plugin-id-key`
+- ✅ **Mobile-friendly** — test on smaller screens
+- ❌ **No eval()** — security risk
+- ❌ **No undisclosed API calls** — respect privacy
+
+## After Approval
+
+Your plugin will appear in the Community Store tab of the Plugin Manager for all Blank Board users.

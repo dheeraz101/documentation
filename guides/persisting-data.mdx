@@ -1,0 +1,107 @@
+---
+title: Persisting Data
+description: "Store and restore plugin state with api.storage"
+---
+
+## Basic Usage
+
+```javascript
+// Save
+api.storage.set('my-key', { count: 42, items: ['a', 'b'] });
+
+// Load
+const data = api.storage.get('my-key');
+// → { count: 42, items: ['a', 'b'] }
+
+// Delete
+api.storage.remove('my-key');
+```
+
+## Common Patterns
+
+### Saving Element Positions
+
+```javascript
+export function setup(api) {
+  const box = document.createElement('div');
+  box.className = 'plugin-box';
+
+  // Restore
+  const pos = api.storage.get('my-plugin-pos');
+  box.style.left = (pos?.left || 100) + 'px';
+  box.style.top = (pos?.top || 100) + 'px';
+
+  // Save on drag end
+  box.addEventListener('mouseup', () => {
+    api.storage.set('my-plugin-pos', {
+      left: parseInt(box.style.left),
+      top: parseInt(box.style.top)
+    });
+  });
+
+  api.boardEl.appendChild(box);
+  api.makeDraggable(box);
+}
+```
+
+### Saving Lists
+
+```javascript
+function setup(api) {
+  let items = api.storage.get('todo-items') || [];
+
+  function addItem(text) {
+    items.push({ text, done: false, id: Date.now() });
+    api.storage.set('todo-items', items);
+  }
+
+  function removeItem(id) {
+    items = items.filter(i => i.id !== id);
+    api.storage.set('todo-items', items);
+  }
+}
+```
+
+### Saving Settings with Defaults
+
+```javascript
+const settings = {
+  is24h: api.storage.get('clock-24h') ?? false,
+  showSeconds: api.storage.get('clock-seconds') ?? true,
+  theme: api.storage.get('clock-theme') ?? 'dark'
+};
+
+// Update and save
+function toggle24h() {
+  settings.is24h = !settings.is24h;
+  api.storage.set('clock-24h', settings.is24h);
+}
+```
+
+## Key Naming
+
+Always prefix with your plugin ID:
+
+```javascript
+// ✅ Good
+'sticky-notes-list'
+'clock-24h'
+'my-plugin-settings'
+
+// ❌ Bad — will collide
+'data'
+'settings'
+'items'
+```
+
+## Storage Limits
+
+`localStorage` has a ~5MB limit per origin. For larger data, consider:
+
+- Compressing before storing
+- Using IndexedDB
+- Storing only what's needed
+
+<Info>
+  The core registry uses `board-plugins-registry` — avoid that key.
+</Info>

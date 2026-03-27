@@ -1,0 +1,60 @@
+---
+title: Introduction
+description: "A minimal, blank canvas where everything is a plugin."
+---
+
+<img className="block dark:hidden" src="/images/hero-light.svg" alt="Blank Board Hero" />
+<img className="hidden dark:block" src="/images/hero-dark.svg" alt="Blank Board Hero" />
+
+## What is Blank Board?
+
+Blank Board is a **minimal, blank canvas** where every feature is a plugin. No built-in tools. No bloat. Just a tiny micro-kernel and a powerful plugin system that lets you build your perfect personal workspace.
+
+<CardGroup cols={2}>
+  <Card title="Quick Start" icon="rocket" href="/introduction/quickstart">
+    Get up and running in 2 minutes
+  </Card>
+  <Card title="Build a Plugin" icon="code" href="/guides/first-plugin">
+    Create your first plugin step by step
+  </Card>
+  <Card title="API Reference" icon="book" href="/api/board">
+    Full API documentation
+  </Card>
+  <Card title="Philosophy" icon="lightbulb" href="/introduction/philosophy">
+    Why Blank Board exists
+  </Card>
+</CardGroup>
+
+## Core Philosophy
+
+<AccordionGroup>
+  <Accordion icon="window-minimize" title="Start Empty">
+    The board starts completely empty. No toolbar, no sidebar, no settings panel — just a blank canvas with a grid.
+  </Accordion>
+  <Accordion icon="puzzle-piece" title="Everything is a Plugin">
+    Even the Plugin Manager is a plugin. The core kernel is ~100 lines. Everything else is modular and optional.
+  </Accordion>
+  <Accordion icon="code" title="Simple to Build">
+    Plugins are standalone ES modules. No build step, no frameworks, no dependencies. Just a `.js` file with `meta` and `setup`.
+  </Accordion>
+  <Accordion icon="users" title="Community Driven">
+    Community plugins live in a separate repository. Anyone can create and share plugins via Pull Request.
+  </Accordion>
+</AccordionGroup>
+
+## Tech Stack
+
+| Component | Technology |
+|-----------|------------|
+| Language | Vanilla JavaScript (ES Modules) |
+| Architecture | Micro-kernel |
+| Plugin Loading | Dynamic `import()` |
+| Communication | Event Bus + Hook System |
+| Storage | LocalStorage (extendable) |
+| Deployment | Netlify |
+
+## Community
+
+- [GitHub Repository](https://github.com/dheeraz101/Empty)
+- [Community Plugins](https://github.com/dheeraz101/Empty_Plugins)
+- [Live Demo](https://emptyweb.netlify.app/)

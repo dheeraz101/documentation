@@ -1,0 +1,74 @@
+---
+title: api.bus
+description: "Event bus for plugin communication"
+---
+
+## Overview
+
+`api.bus` is a pub/sub event system for plugin-to-plugin communication.
+
+## Methods
+
+### `bus.on(event, callback)`
+
+Subscribe to an event.
+
+```javascript
+api.bus.on('todo:added', (data) => {
+  console.log('New todo:', data.text);
+});
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `event` | `string` | Event name |
+| `callback` | `function` | Handler called with event data |
+
+### `bus.off(event, callback)`
+
+Unsubscribe from an event.
+
+```javascript
+function handler(data) { /* ... */ }
+api.bus.on('my-event', handler);
+api.bus.off('my-event', handler);  // same reference required
+```
+
+### `bus.emit(event, data)`
+
+Publish an event to all subscribers.
+
+```javascript
+api.bus.emit('todo:added', { text: 'Buy milk', done: false });
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `event` | `string` | Event name |
+| `data` | `any` | Payload passed to subscribers |
+
+## Naming Convention
+
+Use `namespace:action` format:
+
+```javascript
+// ✅ Good
+api.bus.emit('todo:added', data);
+api.bus.emit('kanban:card:moved', data);
+api.bus.emit('theme:changed', data);
+
+// ❌ Bad — too generic, might collide
+api.bus.emit('update', data);
+api.bus.emit('change', data);
+```
+
+## Built-in Events
+
+| Event | Payload | Description |
+|-------|---------|-------------|
+| `plugin:unload` | `pluginId: string` | A plugin was toggled off or deleted |
+
+## See Also
+
+- [Event Bus concept](/concepts/event-bus) — detailed guide
+- [Hooks](/api/hooks) — for extension points with return values

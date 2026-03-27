@@ -1,0 +1,49 @@
+---
+title: Plugin Manager
+description: "Install, manage, and browse plugins"
+---
+
+## Overview
+
+The Plugin Manager is itself a plugin. It provides a UI for managing all installed plugins and browsing the Community Store.
+
+## Access
+
+**Right-click** anywhere on the board (not on a plugin box) to open the Plugin Manager.
+
+## Features
+
+### Installed Plugins Tab
+
+- View all installed plugins
+- See enabled/disabled status
+- **Pause** — toggle a plugin on/off
+- **Delete** — permanently remove a plugin
+- Protected — the Plugin Manager cannot delete itself
+
+### Community Store Tab
+
+- Browse community plugins from GitHub
+- One-click install
+- Shows "Already installed" for existing plugins
+- Fetches from `plugins.json` in the community repo
+
+### Manual Install
+
+Install any plugin by URL:
+
+1. Enter a unique ID
+2. Paste the URL to a `.js` file
+3. Click **Install from URL**
+
+## Configuration
+
+The community store URL is set in the plugin source:
+
+```javascript
+const COMMUNITY_JSON_URL = 'https://raw.githubusercontent.com/dheeraz101/Empty_Plugins/refs/heads/main/plugins.json';
+```
+
+## File
+
+`plugins/manager/plugin.js`

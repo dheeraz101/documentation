@@ -1,0 +1,78 @@
+---
+title: api.storage
+description: "Key-value storage with JSON serialization"
+---
+
+## Overview
+
+`api.storage` wraps `localStorage` with automatic JSON serialization.
+
+## Methods
+
+### `storage.get(key)`
+
+Retrieve a value. Returns `null` if not found.
+
+```javascript
+const theme = api.storage.get('my-theme');
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `key` | `string` | Storage key |
+
+**Returns:** `any | null`
+
+### `storage.set(key, value)`
+
+Store a value (auto-serialized to JSON).
+
+```javascript
+api.storage.set('my-counter', 42);
+api.storage.set('my-list', [1, 2, 3]);
+api.storage.set('my-obj', { name: 'test' });
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `key` | `string` | Storage key |
+| `value` | `any` | Value to store (must be JSON-serializable) |
+
+### `storage.remove(key)`
+
+Delete a stored key.
+
+```javascript
+api.storage.remove('my-counter');
+```
+
+### `storage.list()`
+
+Returns an array of all localStorage keys.
+
+```javascript
+const keys = api.storage.list();
+// → ['board-plugins-registry', 'my-counter', ...]
+```
+
+**Returns:** `string[]`
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion icon="tag" title="Prefix keys with plugin ID">
+    ```javascript
+    api.storage.set('sticky-notes-list', notes);     // ✅
+    api.storage.set('data', notes);                   // ❌ might collide
+    ```
+  </Accordion>
+  <Accordion icon="download" title="Use nullish coalescing for defaults">
+    ```javascript
+    const is24h = api.storage.get('clock-24h') ?? false;
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## See Also
+
+- [Storage concept](/concepts/storage) — detailed guide with examples

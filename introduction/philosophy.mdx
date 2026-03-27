@@ -1,0 +1,76 @@
+---
+title: Philosophy
+description: "Why Blank Board exists and how it's different"
+---
+
+## The Problem
+
+Most productivity tools come pre-loaded with features you don't need. You fight the UI, hide panels, disable features — and still end up with a cluttered workspace.
+
+**What if the tool started with nothing and you added only what you needed?**
+
+## The Blank Canvas Approach
+
+Blank Board inverts the traditional model:
+
+| Traditional | Blank Board |
+|------------|-------------|
+| Ship everything, let users disable | Ship nothing, let users enable |
+| Features are baked in | Features are plugins |
+| Customization = settings panels | Customization = write code |
+| One-size-fits-all | Everyone's board is different |
+
+## Core Principles
+
+### 1. Minimal Kernel
+
+The entire core is ~100 lines. It boots the board, loads plugins, and provides a small API. That's it.
+
+```javascript
+// That's basically the whole kernel:
+const bus = new EventBus();
+const api = createApi({ boardEl, bus, storage });
+plugins.forEach(p => import(p.url).then(m => m.setup(api)));
+```
+
+### 2. No Coupling
+
+Plugins never import each other. They communicate through the event bus:
+
+```javascript
+// Plugin A emits
+api.bus.emit('todo:added', { text: 'Buy milk' });
+
+// Plugin B listens — no direct dependency
+api.bus.on('todo:added', (data) => updateUI(data));
+```
+
+### 3. Progressive
+
+Start with nothing. Add what you need. Your board grows with you.
+
+<Steps>
+  <Step title="Day 1">You open Blank Board. It's empty. You install a sticky note.</Step>
+  <Step title="Week 1">You add a clock and a to-do list.</Step>
+  <Step title="Month 1">You've got 12 plugins, a custom layout, and a workflow that fits you perfectly.</Step>
+</Steps>
+
+### 4. Portable
+
+No build step. No Node.js required. No framework lock-in. Just open `index.html` in a browser.
+
+### 5. Transparent
+
+Every plugin is a readable `.js` file. You can see exactly what it does before installing it.
+
+## Inspiration
+
+Blank Board draws from:
+
+- **Unix philosophy** — small tools that do one thing well
+- **Browser extensions** — modular enhancements to a base platform
+- **Physical cork boards** — blank space you fill with what matters to you
+
+## The Name
+
+**Empty** — because that's the starting point. What you build on it is entirely up to you.

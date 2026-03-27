@@ -1,0 +1,52 @@
+---
+title: Clock
+description: "Digital and analog clock with 12h/24h toggle"
+---
+
+## Overview
+
+A beautiful dual clock showing both digital and analog time. Includes date display and configurable options.
+
+<Frame>
+  <img src="/images/plugins/clock.png" alt="Clock plugin" />
+</Frame>
+
+## Features
+
+- 🕐 **Digital display** — large, readable time
+- 📅 **Date display** — full date with day of week
+- ⏱️ **Analog clock** — SVG-rendered with hour markers
+- 🔢 **12h / 24h toggle** — switch time format
+- ⏰ **Seconds toggle** — show or hide seconds
+- 💾 **Settings persist** — format and seconds preferences saved
+
+## Events
+
+| Event | Payload | When |
+|-------|---------|------|
+| `clock:tick` | `{ hours, minutes, seconds, date }` | Every tick (250ms or 1s) |
+
+Other plugins can listen to `clock:tick` for time-based features.
+
+## Installation
+
+Included by default in `plugins.json`:
+
+```json
+{
+  "id": "clock",
+  "url": "./plugins/clock/plugin.js",
+  "name": "Clock"
+}
+```
+
+## Storage Keys
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `clock-24h` | `boolean` | `false` | Use 24-hour format |
+| `clock-seconds` | `boolean` | `true` | Show seconds |
+
+## File
+
+`plugins/clock/plugin.js`

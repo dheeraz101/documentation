@@ -1,0 +1,54 @@
+---
+title: Built-in Events
+description: "Events emitted by the Blank Board core"
+---
+
+## Core Events
+
+These events are emitted by the core kernel:
+
+### `plugin:unload`
+
+Emitted when a plugin is toggled off or deleted.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| Payload | `string` | The plugin ID being unloaded |
+
+```javascript
+api.bus.on('plugin:unload', (pluginId) => {
+  if (pluginId === 'my-dependency') {
+    // handle dependency removal
+  }
+  if (pluginId === meta.id) {
+    // clean up my own DOM
+    myElement.remove();
+  }
+});
+```
+
+## Plugin Events
+
+Plugins can define and emit their own events freely. Use `namespace:action` naming:
+
+| Plugin | Event | Payload |
+|--------|-------|---------|
+| Sticky Note | `sticky-note:created` | `{ id: string }` |
+| Sticky Note | `sticky-note:deleted` | `{ id: string }` |
+| Clock | `clock:tick` | `{ hours, minutes, seconds, date }` |
+| Counter | `counter:changed` | `{ value: number }` |
+
+## window.blankBoard
+
+After boot, the core exposes a global debug object:
+
+```javascript
+// In browser DevTools:
+window.blankBoard.bus.emit('test', { hello: true });
+window.blankBoard.api.registry.getAll();
+window.blankBoard.api.installPlugin('debug', './debug.js', 'Debug');
+```
+
+<Info>
+  `window.blankBoard` is only available for debugging. Plugins should use the `api` object passed to `setup()`.
+</Info>

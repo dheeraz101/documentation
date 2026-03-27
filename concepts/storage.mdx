@@ -1,0 +1,98 @@
+---
+title: Storage
+description: "Persist plugin data with localStorage"
+---
+
+## Overview
+
+`api.storage` is a thin wrapper over `localStorage` with automatic JSON serialization.
+
+```javascript
+api.storage.set('my-counter', 42);
+const count = api.storage.get('my-counter');  // → 42
+```
+
+## API
+
+### `api.storage.get(key)`
+
+Retrieve a value. Returns `null` if the key doesn't exist.
+
+```javascript
+const theme = api.storage.get('my-plugin-theme');
+// → "dark" or null
+```
+
+### `api.storage.set(key, value)`
+
+Store a value. Automatically serializes to JSON.
+
+```javascript
+api.storage.set('my-counter', 42);
+api.storage.set('my-list', [1, 2, 3]);
+api.storage.set('my-obj', { name: 'test', active: true });
+```
+
+### `api.storage.remove(key)`
+
+Delete a stored key.
+
+```javascript
+api.storage.remove('my-counter');
+```
+
+### `api.storage.list()`
+
+Returns an array of all localStorage keys.
+
+```javascript
+const keys = api.storage.list();
+// → ['board-plugins-registry', 'my-counter', ...]
+```
+
+## Best Practices
+
+### Prefix Your Keys
+
+Always prefix storage keys with your plugin ID to avoid collisions:
+
+```javascript
+// ✅ Good
+api.storage.get('sticky-notes-list');
+api.storage.set('clock-24h', true);
+
+// ❌ Bad — might conflict with other plugins
+api.storage.get('data');
+api.storage.set('settings', { ... });
+```
+
+### Store Positions
+
+```javascript
+// Save position on drag end
+el.addEventListener('mouseup', () => {
+  api.storage.set('my-plugin-pos', {
+    left: parseInt(el.style.left),
+    top: parseInt(el.style.top)
+  });
+});
+
+// Restore on load
+const pos = api.storage.get('my-plugin-pos');
+if (pos) {
+  el.style.left = pos.left + 'px';
+  el.style.top = pos.top + 'px';
+}
+```
+
+### Store Settings
+
+```javascript
+// With defaults
+const is24h = api.storage.get('clock-24h') ?? false;
+const showSeconds = api.storage.get('clock-seconds') ?? true;
+```
+
+<Warning>
+  `api.storage` uses `localStorage`, which has a ~5MB limit per origin. Don't store large blobs (images, long documents) — use IndexedDB for that.
+</Warning>

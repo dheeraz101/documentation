@@ -1,0 +1,85 @@
+---
+title: api.boardEl
+description: "The board DOM element where plugins render"
+---
+
+## Overview
+
+`api.boardEl` is the `#board` DOM element — the full-viewport canvas where all plugins render their UI.
+
+```javascript
+const box = document.createElement('div');
+box.textContent = 'Hello!';
+api.boardEl.appendChild(box);
+```
+
+## Type
+
+`HTMLElement`
+
+## Usage
+
+This is where your plugin creates and appends UI elements.
+
+```javascript
+export function setup(api) {
+  const widget = document.createElement('div');
+  widget.className = 'plugin-box';
+  widget.style.cssText = `
+    position: absolute;
+    left: 100px;
+    top: 100px;
+    width: 300px;
+    padding: 20px;
+    background: white;
+    border-radius: 12px;
+  `;
+  widget.innerHTML = '<p>My plugin UI</p>';
+
+  api.boardEl.appendChild(widget);
+}
+```
+
+## CSS Grid Background
+
+The board has a built-in CSS grid pattern:
+
+```css
+#board {
+  width: 100vw;
+  height: 100vh;
+  background-image:
+    linear-gradient(#ddd 1px, transparent 1px),
+    linear-gradient(90deg, #ddd 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+```
+
+## The `plugin-box` Class
+
+Use the `plugin-box` class for standard card styling:
+
+```css
+.plugin-box {
+  position: absolute;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  border-radius: 8px;
+  background: white;
+  cursor: move;
+  user-select: none;
+}
+```
+
+<Info>
+  The `plugin-box` class is defined in `index.html`. It gives you rounded corners, a shadow, and `cursor: move`.
+</Info>
+
+## Removing Elements
+
+Always clean up when your plugin is unloaded:
+
+```javascript
+api.bus.on('plugin:unload', (id) => {
+  if (id === meta.id) myElement.remove();
+});
+```

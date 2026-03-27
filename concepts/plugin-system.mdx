@@ -1,0 +1,90 @@
+---
+title: Plugin System
+description: "How plugins are loaded, managed, and communicate"
+---
+
+## How Plugins Work
+
+Plugins are **standalone ES modules** (`.js` files) that export a `meta` object and a `setup` function.
+
+```javascript
+export const meta = {
+  id: 'my-plugin',
+  name: 'My Plugin',
+  version: '1.0.0'
+};
+
+export function setup(api) {
+  // api.boardEl, api.bus, api.storage, etc.
+}
+```
+
+## Loading Process
+
+<Steps>
+  <Step title="Registry Read">
+    Core reads the plugin registry from localStorage (or `plugins.json` on first load).
+  </Step>
+  <Step title="Filter Enabled">
+    Only plugins with `enabled: true` are loaded.
+  </Step>
+  <Step title="Dynamic Import">
+    Each plugin is loaded via `import(url)` — no bundling required.
+  </Step>
+  <Step title="Validation">
+    Core checks that the module exports `meta` and `setup`.
+  </Step>
+  <Step title="Setup">
+    `plugin.setup(api)` is called with the full API object.
+  </Step>
+</Steps>
+
+## Plugin Management
+
+### Installing
+
+```javascript
+await api.installPlugin('my-plugin', 'https://example.com/plugin.js', 'My Plugin');
+```
+
+### Toggling
+
+```javascript
+await api.togglePlugin('my-plugin');  // enable ↔ disable
+```
+
+### Deleting
+
+```javascript
+api.deletePlugin('my-plugin');  // permanent removal
+```
+
+## Unloading
+
+When a plugin is disabled or deleted, the core emits:
+
+```javascript
+api.bus.emit('plugin:unload', pluginId);
+```
+
+Plugins should listen for this to clean up their DOM elements:
+
+```javascript
+api.bus.on('plugin:unload', (id) => {
+  if (id === meta.id) myElement.remove();
+});
+```
+
+<Tip>
+  Export a `teardown()` function for cleanup logic (clearing intervals, removing listeners, etc.).
+</Tip>
+
+## Plugin Manager
+
+The Plugin Manager is itself a plugin. It provides:
+
+- **Installed Plugins** tab — view, toggle, delete installed plugins
+- **Community Store** tab — browse and install from GitHub
+- **Manual Install** — paste any URL to install a plugin
+
+Access it by **right-clicking** anywhere on the board.

@@ -1,0 +1,135 @@
+---
+title: Plugin Communication
+description: "How plugins talk to each other via events and hooks"
+---
+
+## Two Mechanisms
+
+| | Events | Hooks |
+|---|--------|-------|
+| **Purpose** | Notify | Extend |
+| **Return values** | No | Yes |
+| **Use case** | "Something happened" | "Add your thing to my thing" |
+
+## Events (Pub/Sub)
+
+### Emitting
+
+```javascript
+api.bus.emit('todo:added', { text: 'Buy milk', count: 3 });
+```
+
+### Listening
+
+```javascript
+api.bus.on('todo:added', (data) => {
+  console.log(`Total todos: ${data.count}`);
+});
+```
+
+### Full Example
+
+```javascript
+// === Plugin A: todo-list ===
+export function setup(api) {
+  const todos = [];
+
+  function add(text) {
+    todos.push({ text, done: false });
+    api.bus.emit('todo:added', { text, count: todos.length });
+  }
+
+  function toggle(index) {
+    todos[index].done = !todos[index].done;
+    api.bus.emit('todo:toggled', { index, done: todos[index].done });
+  }
+}
+
+// === Plugin B: stats ===
+export function setup(api) {
+  let total = 0;
+  let completed = 0;
+
+  api.bus.on('todo:added', (data) => {
+    total = data.count;
+    render();
+  });
+
+  api.bus.on('todo:toggled', (data) => {
+    completed += data.done ? 1 : -1;
+    render();
+  });
+}
+```
+
+## Hooks (Extension Points)
+
+### Registering
+
+```javascript
+// Toolbar plugin exposes an extension point
+api.registerHook('sidebar:add-section', (config) => {
+  const section = document.createElement('div');
+  section.innerHTML = `<h4>${config.title}</h4>`;
+  sidebar.appendChild(section);
+  return section;
+});
+```
+
+### Using
+
+```javascript
+// Another plugin adds a section to the sidebar
+api.useHook('sidebar:add-section', {
+  title: 'My Section',
+  content: 'Hello from my plugin!'
+});
+```
+
+### Full Example
+
+```javascript
+// === Plugin A: toolbar ===
+export function setup(api) {
+  const toolbar = document.createElement('div');
+  toolbar.style.cssText = 'display:flex; gap:8px; padding:12px;';
+
+  api.registerHook('toolbar:add-button', (config) => {
+    const btn = document.createElement('button');
+    btn.textContent = config.label;
+    btn.onclick = config.action;
+    toolbar.appendChild(btn);
+    return btn;
+  });
+
+  api.boardEl.appendChild(toolbar);
+}
+
+// === Plugin B: my-tools ===
+export function setup(api) {
+  // Add two buttons to the toolbar
+  api.useHook('toolbar:add-button', {
+    label: '📊 Stats',
+    action: () => showStats()
+  });
+
+  api.useHook('toolbar:add-button', {
+    label: '⚙️ Settings',
+    action: () => openSettings()
+  });
+}
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion icon="lock" title="Don't import other plugins">
+    Always use events or hooks — never `import('./other-plugin.js')`.
+  </Accordion>
+  <Accordion icon="tag" title="Use namespaced event names">
+    `my-plugin:action` not `action`.
+  </Accordion>
+  <Accordion icon="rotate-left" title="Clean up listeners">
+    Remove event listeners when your plugin is unloaded.
+  </Accordion>
+</AccordionGroup>
