@@ -1,0 +1,100 @@
+---
+title: Utilities
+description: "Debounce and throttle helpers"
+---
+
+## Overview
+
+The API includes two common utility functions for controlling execution frequency.
+
+## api.debounce(fn, delay?)
+
+Returns a debounced version of `fn`. The function only executes after `delay` milliseconds of inactivity.
+
+```javascript
+const savePosition = api.debounce((left, top) => {
+  api.storage.set('my-pos', { left, top });
+}, 500);
+
+// Called on every mouse move, but only fires 500ms after the last call
+element.addEventListener('mousemove', (e) => {
+  savePosition(e.clientX, e.clientY);
+});
+```
+
+### Signature
+
+```javascript
+api.debounce(fn: Function, delay?: number): Function
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `fn` | `function` | Function to debounce |
+| `delay` | `number` | Debounce delay in ms. Default: `250` |
+
+**Returns:** `function` — debounced wrapper
+
+## api.throttle(fn, limit?)
+
+Returns a throttled version of `fn`. The function executes at most once every `limit` milliseconds.
+
+```javascript
+const onScroll = api.throttle(() => {
+  console.log('Scroll position:', window.scrollY);
+}, 100);
+
+// Fires at most once every 100ms
+window.addEventListener('scroll', onScroll);
+```
+
+### Signature
+
+```javascript
+api.throttle(fn: Function, limit?: number): Function
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `fn` | `function` | Function to throttle |
+| `limit` | `number` | Minimum interval between calls in ms. Default: `100` |
+
+**Returns:** `function` — throttled wrapper
+
+## Debounce vs Throttle
+
+| | Debounce | Throttle |
+|---|----------|----------|
+| **Behavior** | Waits for silence | Fires at fixed intervals |
+| **Best for** | "Do this after the user stops" | "Do this regularly while active" |
+| **Example** | Auto-save after typing | Scroll position tracking |
+| **Default delay** | 250ms | 100ms |
+
+## Examples
+
+### Resize handling
+
+```javascript
+const onResize = api.debounce(() => {
+  recalculateLayout();
+  api.storage.set('board-size', {
+    width: window.innerWidth,
+    height: window.innerHeight
+  });
+}, 300);
+
+window.addEventListener('resize', onResize);
+```
+
+### Input filtering
+
+```javascript
+const searchInput = document.querySelector('#search');
+const doSearch = api.throttle((query) => {
+  performSearch(query);
+}, 200);
+
+searchInput.addEventListener('input', (e) => {
+  doSearch(e.target.value);
+});
+```

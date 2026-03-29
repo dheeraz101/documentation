@@ -1,21 +1,29 @@
 ---
-title: api.bus
-description: "Event bus for plugin communication"
+title: EventBus
+description: "Pub/sub event system for plugin communication"
 ---
 
 ## Overview
 
-`api.bus` is a pub/sub event system for plugin-to-plugin communication.
+The EventBus is a simple pub/sub system that enables decoupled communication between plugins.
+
+```javascript
+api.bus.on('todo:added', (data) => {
+  console.log('New todo:', data.text);
+});
+
+api.bus.emit('todo:added', { text: 'Buy milk' });
+```
 
 ## Methods
 
 ### `bus.on(event, callback)`
 
-Subscribe to an event.
+Subscribe to an event. Multiple listeners can subscribe to the same event.
 
 ```javascript
-api.bus.on('todo:added', (data) => {
-  console.log('New todo:', data.text);
+api.bus.on('theme:changed', (data) => {
+  document.body.style.background = data.color;
 });
 ```
 
@@ -26,17 +34,34 @@ api.bus.on('todo:added', (data) => {
 
 ### `bus.off(event, callback)`
 
-Unsubscribe from an event.
+Unsubscribe from an event. Must pass the **same function reference** used in `on()`.
 
 ```javascript
 function handler(data) { /* ... */ }
+
 api.bus.on('my-event', handler);
-api.bus.off('my-event', handler);  // same reference required
+// later:
+api.bus.off('my-event', handler);
 ```
+
+### `bus.once(event, callback)`
+
+Subscribe to an event, but the listener is automatically removed after the first emission.
+
+```javascript
+api.bus.once('board:ready', (data) => {
+  console.log('Board is ready, only fires once');
+});
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `event` | `string` | Event name |
+| `callback` | `function` | Handler called once with event data, then removed |
 
 ### `bus.emit(event, data)`
 
-Publish an event to all subscribers.
+Publish an event to all subscribers. Errors in listeners are caught and logged without interrupting other listeners.
 
 ```javascript
 api.bus.emit('todo:added', { text: 'Buy milk', done: false });
@@ -47,28 +72,61 @@ api.bus.emit('todo:added', { text: 'Buy milk', done: false });
 | `event` | `string` | Event name |
 | `data` | `any` | Payload passed to subscribers |
 
-## Naming Convention
+### `bus.removeAll([event])`
 
-Use `namespace:action` format:
+Remove all listeners for a specific event, or **all events** if no event name is given.
 
 ```javascript
-// ✅ Good
-api.bus.emit('todo:added', data);
-api.bus.emit('kanban:card:moved', data);
-api.bus.emit('theme:changed', data);
+// Remove all listeners for a specific event
+api.bus.removeAll('todo:added');
 
-// ❌ Bad — too generic, might collide
-api.bus.emit('update', data);
-api.bus.emit('change', data);
+// Remove ALL listeners across all events
+api.bus.removeAll();
 ```
 
-## Built-in Events
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `event` | `string` | *(Optional)* Event name. If omitted, clears everything. |
 
-| Event | Payload | Description |
-|-------|---------|-------------|
-| `plugin:unload` | `pluginId: string` | A plugin was toggled off or deleted |
+<Warning>
+  `removeAll()` with no arguments is a nuclear option. Use with care — it removes listeners from every plugin, not just yours.
+</Warning>
 
-## See Also
+## Naming Convention
 
-- [Event Bus concept](/concepts/event-bus) — detailed guide
-- [Hooks](/api/hooks) — for extension points with return values
+Use `namespace:action` to avoid collisions between plugins:
+
+| ✅ Good | ❌ Bad |
+|---------|--------|
+| `todo:added` | `added` |
+| `kanban:card:moved` | `move` |
+| `theme:changed` | `change` |
+| `sticky-note:created` | `new` |
+
+## Example: Cross-Plugin Communication
+
+```javascript
+// === todo-list/plugin.js ===
+export function setup(api) {
+  const todos = [];
+
+  function addTodo(text) {
+    todos.push({ text, done: false });
+    api.bus.emit('todo:added', { text, count: todos.length });
+  }
+}
+
+// === stats/plugin.js ===
+export function setup(api) {
+  let count = 0;
+
+  api.bus.on('todo:added', (data) => {
+    count = data.count;
+    renderStats();
+  });
+}
+```
+
+<Warning>
+  Plugins should never directly import or reference each other. Always use the event bus for communication.
+</Warning>

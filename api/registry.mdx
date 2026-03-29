@@ -7,7 +7,7 @@ description: "Low-level plugin registry access"
 
 `api.registry` provides low-level access to the plugin registry. Primarily used by the Plugin Manager.
 
-## Methods
+## Registry Methods
 
 ### `registry.getAll()`
 
@@ -26,8 +26,26 @@ interface PluginDefinition {
   name: string;
   url: string;
   enabled: boolean;
+  source?: 'system' | 'registry' | 'manual';  // How the plugin was installed
+  icon?: string;                                // Emoji icon
+  author?: string;                              // Plugin author
 }
 ```
+
+### `registry.get(id)`
+
+Returns a single plugin definition by ID (shallow copy), or `null` if not found.
+
+```javascript
+const plugin = api.registry.get('my-plugin');
+// → { id: 'my-plugin', name: 'My Plugin', enabled: true, ... }
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `id` | `string` | Plugin ID |
+
+**Returns:** `PluginDefinition | null`
 
 ### `registry.save(newRegistry)`
 
@@ -43,29 +61,9 @@ api.registry.save(plugins);
 
 These are attached directly to `api` (not `api.registry`):
 
-### `api.togglePlugin(id)`
-
-Enable or disable a plugin.
-
-```javascript
-await api.togglePlugin('my-plugin');
-```
-
-**Returns:** `Promise<boolean>` — `true` if successful
-
-### `api.deletePlugin(id)`
-
-Permanently remove a plugin.
-
-```javascript
-api.deletePlugin('my-plugin');
-```
-
-**Returns:** `boolean` — `true` if successful
-
 ### `api.installPlugin(id, url, name)`
 
-Install a plugin from URL.
+Install a plugin from URL. Validates the URL format and checks for duplicate IDs.
 
 ```javascript
 await api.installPlugin(
@@ -78,7 +76,86 @@ await api.installPlugin(
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `id` | `string` | Unique plugin ID |
-| `url` | `string` | URL to the `.js` file |
+| `url` | `string` | URL to the `.js` file (must end with `.js`, must be `http(s)://`) |
 | `name` | `string` | Display name (defaults to `id`) |
 
 **Returns:** `Promise<boolean>` — `true` if installed, `false` if ID already exists
+
+<Info>
+  Plugins installed via `installPlugin` get `source: 'manual'`. The core will show a warning notification when loading manual plugins.
+</Info>
+
+### `api.togglePlugin(id)`
+
+Enable or disable a plugin. Loads the plugin if disabled, unloads if enabled.
+
+```javascript
+await api.togglePlugin('my-plugin');
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `id` | `string` | Plugin ID |
+
+**Returns:** `Promise<boolean>` — `true` if successful, `false` if not found
+
+### `api.deletePlugin(id)`
+
+Permanently remove a plugin. Unloads it first, then removes from registry.
+
+```javascript
+api.deletePlugin('my-plugin');
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `id` | `string` | Plugin ID |
+
+**Returns:** `boolean` — `true` if successful, `false` if not found
+
+### `api.reloadPlugin(id)`
+
+Unload and reload a single plugin without restarting the whole board.
+
+```javascript
+await api.reloadPlugin('my-plugin');
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `id` | `string` | Plugin ID |
+
+**Returns:** `Promise<boolean>` — `true` if successful, `false` if not found
+
+<Tip>
+  Use `reloadPlugin` during plugin development to test changes without restarting the entire board.
+</Tip>
+
+### `api.restart()`
+
+Unload all plugins, then reload all enabled plugins from the registry.
+
+```javascript
+await api.restart();
+// All plugins are torn down and re-initialized
+```
+
+**Emits:** `board:restarted` event after completion.
+
+<Info>
+  `restart()` is useful after bulk registry changes or when you need a clean slate.
+</Info>
+
+## Plugin ID
+
+### `api.getPluginId()`
+
+Returns the ID of the **currently loading** plugin. Only has a value while a plugin's `setup()` is executing.
+
+```javascript
+export function setup(api) {
+  console.log(api.getPluginId());  // → 'my-plugin'
+}
+```
+
+**Returns:** `string | null`

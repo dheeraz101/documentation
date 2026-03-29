@@ -1,0 +1,241 @@
+---
+title: UI Systems
+description: "Notifications, modals, toolbar, sidebar, context menu, and keyboard shortcuts"
+---
+
+## Notifications
+
+### api.notify(message, type?, duration?)
+
+Show a toast notification in the bottom-right corner.
+
+```javascript
+api.notify('Plugin installed!', 'success');
+api.notify('Something went wrong', 'error', 5000);
+```
+
+#### Signature
+
+```javascript
+api.notify(message: string, type?: string, duration?: number): HTMLElement
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `message` | `string` | Notification text |
+| `type` | `'info' \| 'success' \| 'warning' \| 'error'` | Notification type. Default: `'info'` |
+| `duration` | `number` | Auto-dismiss time in ms. Default: `3000`. Set `0` to persist. |
+
+**Returns:** `HTMLElement` — the toast element (for manual removal if `duration` is `0`)
+
+#### Colors
+
+| Type | Color |
+|------|-------|
+| `info` | Blue (`#3498db`) |
+| `success` | Green (`#2ecc71`) |
+| `warning` | Orange (`#f39c12`) |
+| `error` | Red (`#e74c3c`) |
+
+## Modals
+
+### api.showModal(options)
+
+Open a modal dialog with an overlay.
+
+```javascript
+const { close } = api.showModal({
+  title: 'Confirm Action',
+  content: '<p>Are you sure?</p>',
+  onClose: () => console.log('Modal closed')
+});
+
+// Close programmatically
+close();
+```
+
+#### Signature
+
+```javascript
+api.showModal(options: {
+  title?: string;
+  content: string | HTMLElement;
+  onClose?: () => void;
+}): { close: () => void }
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `options.title` | `string` | *(Optional)* Modal title |
+| `options.content` | `string \| HTMLElement` | Modal body (HTML string or DOM element) |
+| `options.onClose` | `function` | *(Optional)* Callback when modal closes |
+
+**Returns:** `{ close: () => void }` — call `close()` to dismiss the modal programmatically
+
+#### Behavior
+
+- Clicking the overlay (outside the modal) closes it
+- Modal is centered on screen
+- Overlay blocks interaction with the board
+
+## Toolbar
+
+### api.registerToolbarButton(options)
+
+Add a button to the shared toolbar (fixed at top-center of the screen).
+
+```javascript
+api.registerToolbarButton({
+  id: 'my-action',
+  label: '🚀 Launch',
+  onClick: () => console.log('Clicked!')
+});
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `id` | `string` | Unique button ID |
+| `label` | `string` | Button text |
+| `onClick` | `function` | Click handler |
+
+<Info>
+  If a button with the same ID already exists, the call is a no-op (no duplicate created).
+</Info>
+
+### api.removeToolbarButton(id)
+
+Remove a toolbar button.
+
+```javascript
+api.removeToolbarButton('my-action');
+```
+
+## Sidebar
+
+### api.registerSidebarItem(options)
+
+Add an icon item to the sidebar (fixed at left side of the screen).
+
+```javascript
+const item = api.registerSidebarItem({
+  id: 'my-panel',
+  icon: '⚙️',
+  onClick: () => openMyPanel()
+});
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `id` | `string` | Unique item ID |
+| `icon` | `string` | Emoji or text to display |
+| `onClick` | `function` | Click handler |
+
+**Returns:** `HTMLElement` — the created sidebar item element
+
+### api.removeSidebarItem(id)
+
+Remove a sidebar item.
+
+```javascript
+api.removeSidebarItem('my-panel');
+```
+
+## Context Menu
+
+### api.registerContextMenuItem(label, callback)
+
+Add an item to the board's right-click context menu.
+
+```javascript
+api.registerContextMenuItem('📝 New Note', () => {
+  createNewNote();
+});
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `label` | `string` | Menu item text |
+| `callback` | `function` | Click handler |
+
+<Info>
+  Context menu items are added to a shared menu. The menu auto-closes when clicked.
+</Info>
+
+## Keyboard Shortcuts
+
+### api.registerShortcut(keys, callback)
+
+Register a keyboard shortcut.
+
+```javascript
+const unregister = api.registerShortcut('ctrl+s', (e) => {
+  e.preventDefault();
+  saveAll();
+});
+
+// Later, remove the shortcut
+unregister();
+```
+
+#### Signature
+
+```javascript
+api.registerShortcut(keys: string, callback: (event: KeyboardEvent) => void): () => void
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `keys` | `string` | Key combination (e.g., `'ctrl+s'`, `'alt+n'`) |
+| `callback` | `function` | Handler called on keydown |
+
+**Returns:** `() => void` — call this function to unregister the shortcut
+
+<Info>
+  The key part (after the last `+`) is matched case-insensitively. Modifiers are checked via string parsing.
+</Info>
+
+## Full Example
+
+```javascript
+export const meta = {
+  id: 'my-tools',
+  name: 'My Tools',
+  version: '1.0.0'
+};
+
+export function setup(api) {
+  // Toolbar button
+  api.registerToolbarButton({
+    id: 'my-tools-btn',
+    label: '🛠️ Tools',
+    onClick: () => api.notify('Tools clicked!', 'info')
+  });
+
+  // Sidebar item
+  api.registerSidebarItem({
+    id: 'my-tools-sidebar',
+    icon: '🛠️',
+    onClick: () => {
+      api.showModal({
+        title: 'My Tools',
+        content: '<p>Tool settings go here.</p>'
+      });
+    }
+  });
+
+  // Context menu
+  api.registerContextMenuItem('🛠️ Do Something', () => {
+    api.notify('Done!', 'success');
+  });
+
+  // Keyboard shortcut
+  api.registerShortcut('ctrl+shift+t', () => {
+    api.notify('Shortcut triggered!', 'warning');
+  });
+}
+
+export function teardown() {
+  api.removeToolbarButton('my-tools-btn');
+  api.removeSidebarItem('my-tools-sidebar');
+}
+```

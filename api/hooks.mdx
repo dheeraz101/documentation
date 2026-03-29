@@ -5,13 +5,13 @@ description: "Hook system for plugin extensibility"
 
 ## Overview
 
-Hooks let plugins expose extension points that other plugins can register handlers for.
+Hooks let plugins expose **extension points** that other plugins can register handlers for. Unlike events (fire-and-forget), hooks collect return values.
 
 ## Methods
 
 ### `api.registerHook(name, handler)`
 
-Register a hook handler.
+Register a function that responds to a named hook.
 
 ```javascript
 api.registerHook('toolbar:add-button', (config) => {
@@ -23,12 +23,12 @@ api.registerHook('toolbar:add-button', (config) => {
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `name` | `string` | Hook name |
-| `handler` | `function` | Callback receiving payload, returning a value |
+| `name` | `string` | Hook name (use `namespace:action` format) |
+| `handler` | `function` | Callback receiving payload, can return a value |
 
 ### `api.useHook(name, payload)`
 
-Call all registered handlers. Returns their return values.
+Call all registered handlers for a hook. Returns an array of their return values.
 
 ```javascript
 const results = api.useHook('toolbar:add-button', { label: 'Click me' });
@@ -37,11 +37,48 @@ const results = api.useHook('toolbar:add-button', { label: 'Click me' });
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `name` | `string` | Hook name |
+| `name` | `string` | Hook name to invoke |
 | `payload` | `any` | Data passed to each handler |
 
-**Returns:** `Array<any>`
+**Returns:** `Array<any>` — return values from each handler (empty array if none registered).
+
+### `api.removeHook(name, handler)`
+
+Remove a previously registered hook handler. Must pass the **same function reference** used in `registerHook()`.
+
+```javascript
+function myHandler(config) {
+  const btn = document.createElement('button');
+  btn.textContent = config.label;
+  return btn;
+}
+
+// Register
+api.registerHook('toolbar:add-button', myHandler);
+
+// Later, remove it
+api.removeHook('toolbar:add-button', myHandler);
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `name` | `string` | Hook name |
+| `handler` | `function` | The exact function reference to remove |
+
+<Info>
+  Use `removeHook` in your plugin's `teardown()` function to clean up hooks when the plugin is disabled or deleted.
+</Info>
+
+## Hooks vs Events
+
+| | Events | Hooks |
+|---|--------|-------|
+| **Purpose** | Notify | Extend |
+| **Return values** | No | Yes |
+| **Direction** | One-way broadcast | Request → responses |
+| **Use case** | "Something happened" | "Add your thing to my thing" |
 
 ## See Also
 
 - [Hooks concept](/concepts/hooks) — detailed guide with examples
+- [Plugin Communication guide](/guides/plugin-communication) — events + hooks patterns

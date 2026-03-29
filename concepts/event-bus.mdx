@@ -41,12 +41,31 @@ api.bus.on('my-event', handler);
 api.bus.off('my-event', handler);
 ```
 
+### `bus.once(event, callback)`
+
+Subscribe to an event, but auto-remove the listener after the first emission.
+
+```javascript
+api.bus.once('board:ready', (data) => {
+  console.log('Ready! (only fires once)');
+});
+```
+
 ### `bus.emit(event, data)`
 
-Publish an event to all subscribers.
+Publish an event to all subscribers. Errors in listeners are caught and logged without interrupting other listeners.
 
 ```javascript
 api.bus.emit('theme:changed', { color: '#1a1a2e' });
+```
+
+### `bus.removeAll([event])`
+
+Remove all listeners for a specific event, or all events if no name is given.
+
+```javascript
+api.bus.removeAll('todo:added');  // Clear all listeners for this event
+api.bus.removeAll();              // Nuclear option: clear everything
 ```
 
 ## Naming Convention
@@ -64,7 +83,22 @@ Use `namespace:action` to avoid collisions between plugins:
 
 | Event | Payload | When |
 |-------|---------|------|
-| `plugin:unload` | `pluginId` | Plugin is toggled off or deleted |
+| `board:ready` | `{ boardEl }` | Board initialized |
+| `board:allPluginsLoaded` | `{ total, enabled }` | All plugins loaded |
+| `board:restarted` | — | Board restarted via `api.restart()` |
+| `board:resize` | `{ width, height }` | Window resized |
+| `plugin:loaded` | `{ id, meta, container }` | Single plugin loaded |
+| `plugin:unload` | `pluginId` | Plugin toggled off or deleted |
+| `plugin:unloaded` | `pluginId` | Plugin fully torn down |
+| `plugin:docked` | `{ pluginId, el, target }` | Plugin docked |
+| `plugin:undocked` | `{ pluginId, el }` | Plugin undocked |
+| `plugin:updated` | `{ pluginId, el }` | Plugin container modified |
+| `plugin:dragstart` | `{ el }` | Drag started |
+| `plugin:dragend` | `{ el }` | Drag ended |
+| `contextmenu:open` | `{ x, y, menu }` | Right-click menu opened |
+| `storage:change` | `{ key, value, oldValue, pluginId? }` | Storage value changed |
+
+See [Built-in Events](/api/events) for full details.
 
 ## Example: Cross-Plugin Communication
 

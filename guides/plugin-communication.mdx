@@ -27,6 +27,25 @@ api.bus.on('todo:added', (data) => {
 });
 ```
 
+### One-Shot Listening
+
+```javascript
+// Fires once, then auto-removes
+api.bus.once('board:ready', (data) => {
+  console.log('Board ready, only fires once');
+});
+```
+
+### Unsubscribing
+
+```javascript
+function handler(data) { /* ... */ }
+api.bus.on('my-event', handler);
+
+// Later:
+api.bus.off('my-event', handler);  // Must be same reference
+```
+
 ### Full Example
 
 ```javascript
@@ -80,10 +99,21 @@ api.registerHook('sidebar:add-section', (config) => {
 
 ```javascript
 // Another plugin adds a section to the sidebar
-api.useHook('sidebar:add-section', {
+const sections = api.useHook('sidebar:add-section', {
   title: 'My Section',
   content: 'Hello from my plugin!'
 });
+// sections → [sectionElement, ...]
+```
+
+### Removing
+
+```javascript
+function myHandler(config) { /* ... */ }
+
+api.registerHook('my-hook', myHandler);
+// Later (e.g., in teardown):
+api.removeHook('my-hook', myHandler);
 ```
 
 ### Full Example
@@ -102,22 +132,69 @@ export function setup(api) {
     return btn;
   });
 
+  // Invoke hooks after all plugins are loaded
+  api.bus.once('board:allPluginsLoaded', () => {
+    api.useHook('toolbar:add-button', {
+      label: '🏠 Home',
+      action: () => goHome()
+    });
+  });
+
   api.boardEl.appendChild(toolbar);
 }
 
 // === Plugin B: my-tools ===
 export function setup(api) {
-  // Add two buttons to the toolbar
-  api.useHook('toolbar:add-button', {
-    label: '📊 Stats',
-    action: () => showStats()
-  });
+  // Wait for toolbar to register its hook
+  api.bus.once('board:allPluginsLoaded', () => {
+    api.useHook('toolbar:add-button', {
+      label: '📊 Stats',
+      action: () => showStats()
+    });
 
-  api.useHook('toolbar:add-button', {
-    label: '⚙️ Settings',
-    action: () => openSettings()
+    api.useHook('toolbar:add-button', {
+      label: '⚙️ Settings',
+      action: () => openSettings()
+    });
   });
 }
+```
+
+## Reacting to Lifecycle Events
+
+### After All Plugins Load
+
+Use `board:allPluginsLoaded` when your plugin depends on other plugins being ready:
+
+```javascript
+export function setup(api) {
+  // Register my hooks immediately
+  api.registerHook('my-plugin:add-item', (config) => { /* ... */ });
+
+  // Use other plugins' hooks after they're all loaded
+  api.bus.once('board:allPluginsLoaded', () => {
+    api.useHook('toolbar:add-button', {
+      label: 'My Action',
+      action: () => doSomething()
+    });
+  });
+}
+```
+
+### Listening to Other Plugins' Events
+
+```javascript
+// React when a sticky note is created
+api.bus.on('sticky-note:created', ({ id }) => {
+  api.notify(`New note created: ${id}`, 'info');
+});
+
+// React when a clock ticks
+api.bus.on('clock:tick', ({ hours, minutes }) => {
+  if (hours === 0 && minutes === 0) {
+    api.notify('Midnight!', 'warning');
+  }
+});
 ```
 
 ## Best Practices
@@ -130,6 +207,26 @@ export function setup(api) {
     `my-plugin:action` not `action`.
   </Accordion>
   <Accordion icon="rotate-left" title="Clean up listeners">
-    Remove event listeners when your plugin is unloaded.
+    Remove event listeners and hooks in your `teardown()` function:
+    ```javascript
+    function handler(data) { /* ... */ }
+
+    export function setup(api) {
+      api.bus.on('my-event', handler);
+      api.registerHook('my-hook', myHandler);
+    }
+
+    export function teardown() {
+      api.bus.off('my-event', handler);
+      api.removeHook('my-hook', myHandler);
+    }
+    ```
+  </Accordion>
+  <Accordion icon="clock" title="Use `once` for one-time setup">
+    ```javascript
+    api.bus.once('board:ready', () => {
+      // Initialization that should only happen once
+    });
+    ```
   </Accordion>
 </AccordionGroup>

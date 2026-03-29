@@ -17,47 +17,63 @@ const data = api.storage.get('my-key');
 api.storage.remove('my-key');
 ```
 
+## Plugin-Scoped Storage (Recommended)
+
+Use `getForPlugin` and `setForPlugin` to automatically namespace your keys:
+
+```javascript
+// Automatically stored under "plugin:my-plugin:theme"
+api.storage.setForPlugin(meta.id, 'theme', 'dark');
+const theme = api.storage.getForPlugin(meta.id, 'theme');
+// → "dark"
+```
+
+This prevents key collisions between plugins without manual prefixing.
+
 ## Common Patterns
 
 ### Saving Element Positions
 
 ```javascript
-export function setup(api) {
-  const box = document.createElement('div');
-  box.className = 'plugin-box';
+let currentApi = null;
 
-  // Restore
-  const pos = api.storage.get('my-plugin-pos');
-  box.style.left = (pos?.left || 100) + 'px';
-  box.style.top = (pos?.top || 100) + 'px';
+export function setup(api) {
+  currentApi = api;
+  const container = api.container;
+
+  // Restore position
+  const pos = api.storage.getForPlugin(meta.id, 'pos');
+  if (pos) {
+    container.style.left = pos.left + 'px';
+    container.style.top = pos.top + 'px';
+  }
 
   // Save on drag end
-  box.addEventListener('mouseup', () => {
-    api.storage.set('my-plugin-pos', {
-      left: parseInt(box.style.left),
-      top: parseInt(box.style.top)
-    });
+  api.bus.on('plugin:dragend', ({ el }) => {
+    if (el.dataset.pluginId === meta.id) {
+      api.storage.setForPlugin(meta.id, 'pos', {
+        left: parseInt(el.style.left),
+        top: parseInt(el.style.top)
+      });
+    }
   });
-
-  api.boardEl.appendChild(box);
-  api.makeDraggable(box);
 }
 ```
 
 ### Saving Lists
 
 ```javascript
-function setup(api) {
-  let items = api.storage.get('todo-items') || [];
+export function setup(api) {
+  let items = api.storage.getForPlugin(meta.id, 'items') || [];
 
   function addItem(text) {
     items.push({ text, done: false, id: Date.now() });
-    api.storage.set('todo-items', items);
+    api.storage.setForPlugin(meta.id, 'items', items);
   }
 
   function removeItem(id) {
     items = items.filter(i => i.id !== id);
-    api.storage.set('todo-items', items);
+    api.storage.setForPlugin(meta.id, 'items', items);
   }
 }
 ```
@@ -66,32 +82,64 @@ function setup(api) {
 
 ```javascript
 const settings = {
-  is24h: api.storage.get('clock-24h') ?? false,
-  showSeconds: api.storage.get('clock-seconds') ?? true,
-  theme: api.storage.get('clock-theme') ?? 'dark'
+  is24h: api.storage.getForPlugin(meta.id, '24h') ?? false,
+  showSeconds: api.storage.getForPlugin(meta.id, 'seconds') ?? true,
+  theme: api.storage.getForPlugin(meta.id, 'theme') ?? 'dark'
 };
 
 // Update and save
 function toggle24h() {
   settings.is24h = !settings.is24h;
-  api.storage.set('clock-24h', settings.is24h);
+  api.storage.setForPlugin(meta.id, '24h', settings.is24h);
 }
+```
+
+### Reacting to Storage Changes
+
+```javascript
+// Listen for ANY storage change
+api.bus.on('storage:change', ({ key, value, oldValue, pluginId }) => {
+  console.log(`${key}: ${oldValue} → ${value}`);
+});
+
+// Listen for changes to your own plugin's storage
+api.bus.on('storage:change', ({ key, value }) => {
+  if (key === `plugin:${meta.id}:theme`) {
+    applyTheme(value);
+  }
+});
 ```
 
 ## Key Naming
 
-Always prefix with your plugin ID:
+When using plugin-scoped storage, you don't need to prefix manually:
+
+```javascript
+// ✅ Good — automatic scoping
+api.storage.setForPlugin(meta.id, 'theme', 'dark');
+api.storage.setForPlugin(meta.id, 'items', [1, 2, 3]);
+
+// ⚠️ Manual prefixing (still works)
+api.storage.set(`${meta.id}-theme`, 'dark');
+api.storage.set('sticky-notes-list', notes);
+```
+
+<Info>
+  The core registry uses `board-plugins-registry` — avoid that key.
+</Info>
+
+## Manual Prefix Keys (Legacy)
+
+If you prefer manual prefixing (the older pattern), it still works:
 
 ```javascript
 // ✅ Good
-'sticky-notes-list'
-'clock-24h'
-'my-plugin-settings'
+api.storage.set('sticky-notes-list', notes);
+api.storage.set('clock-24h', true);
 
 // ❌ Bad — will collide
-'data'
-'settings'
-'items'
+api.storage.set('data', notes);
+api.storage.set('settings', { ... });
 ```
 
 ## Storage Limits
@@ -101,7 +149,3 @@ Always prefix with your plugin ID:
 - Compressing before storing
 - Using IndexedDB
 - Storing only what's needed
-
-<Info>
-  The core registry uses `board-plugins-registry` — avoid that key.
-</Info>

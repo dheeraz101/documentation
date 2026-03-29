@@ -28,11 +28,15 @@ export const meta = {
   id: 'my-plugin',
   name: 'My First Plugin',
   version: '0.1.0',
-  compat: '>=1.0.0'
+  compat: '>=3.3.0'
 };
 
 export function setup(api) {
   // Your code here
+}
+
+export function teardown() {
+  // Cleanup (optional but recommended)
 }
 ```
 
@@ -46,6 +50,23 @@ export function setup(api) {
 | `compat` | ❌ | Core version compatibility range |
 
 ## Step 3: Build Your UI
+
+Use the managed container for standard plugins:
+
+```javascript
+export function setup(api) {
+  const container = api.container;
+  container.innerHTML = `
+    <div style="padding: 20px; background: white; border-radius: 12px;">
+      <h3 style="margin: 0 0 10px 0;">My Plugin</h3>
+      <p>Hello from my first plugin!</p>
+    </div>
+  `;
+  // Container is already draggable and resizable!
+}
+```
+
+Or create your own element for more control:
 
 ```javascript
 export function setup(api) {
@@ -67,103 +88,163 @@ export function setup(api) {
 
   api.boardEl.appendChild(box);
   api.makeDraggable(box);
+  api.makeResizable(box);
 }
 ```
 
 ## Step 4: Add Storage
 
+Use plugin-scoped storage for clean key management:
+
 ```javascript
+let currentApi = null;
+
 export function setup(api) {
-  const box = document.createElement('div');
-  box.className = 'plugin-box';
+  currentApi = api;
+  const container = api.container;
 
   // Restore saved position
-  const saved = api.storage.get('my-plugin-pos');
-  box.style.left = (saved?.left || 100) + 'px';
-  box.style.top = (saved?.top || 100) + 'px';
-  box.style.width = '300px';
-  box.style.padding = '20px';
+  const pos = api.storage.getForPlugin(meta.id, 'pos');
+  if (pos) {
+    container.style.left = pos.left + 'px';
+    container.style.top = pos.top + 'px';
+  }
 
-  box.innerHTML = '<p>Drag me — I remember my position!</p>';
+  container.innerHTML = `
+    <div style="padding: 20px; background: white; border-radius: 12px;">
+      <p>Drag me — I remember my position!</p>
+    </div>
+  `;
 
   // Save position on drag end
-  box.addEventListener('mouseup', () => {
-    api.storage.set('my-plugin-pos', {
-      left: parseInt(box.style.left),
-      top: parseInt(box.style.top)
-    });
+  api.bus.on('plugin:dragend', ({ el }) => {
+    if (el.dataset.pluginId === meta.id) {
+      api.storage.setForPlugin(meta.id, 'pos', {
+        left: parseInt(el.style.left),
+        top: parseInt(el.style.top)
+      });
+    }
   });
-
-  api.boardEl.appendChild(box);
-  api.makeDraggable(box);
 }
 ```
 
 ## Step 5: Add Event Communication
 
 ```javascript
+let currentApi = null;
+
 export function setup(api) {
-  const box = document.createElement('div');
-  box.className = 'plugin-box';
-  box.style.cssText = 'left:200px; top:200px; width:260px; padding:24px; text-align:center;';
+  currentApi = api;
+  const container = api.container;
 
-  let count = api.storage.get('my-counter') || 0;
+  let count = api.storage.getForPlugin(meta.id, 'count') || 0;
 
-  box.innerHTML = `
-    <div style="font-size:14px; color:#888;">Counter</div>
-    <div id="count" style="font-size:48px; font-weight:700; margin:16px 0;">${count}</div>
-    <button id="inc" style="padding:10px 24px; font-size:18px; cursor:pointer;">+</button>
+  container.innerHTML = `
+    <div style="padding: 24px; text-align: center; background: white; border-radius: 12px;">
+      <div style="font-size: 14px; color: #888;">Counter</div>
+      <div id="count" style="font-size: 48px; font-weight: 700; margin: 16px 0;">${count}</div>
+      <button id="inc" style="padding: 10px 24px; font-size: 18px; cursor: pointer;">+</button>
+    </div>
   `;
 
-  box.querySelector('#inc').addEventListener('click', () => {
+  container.querySelector('#inc').addEventListener('click', () => {
     count++;
-    box.querySelector('#count').textContent = count;
-    api.storage.set('my-counter', count);
+    container.querySelector('#count').textContent = count;
+    api.storage.setForPlugin(meta.id, 'count', count);
     api.bus.emit('counter:changed', { value: count });
   });
-
-  api.boardEl.appendChild(box);
-  api.makeDraggable(box);
 }
 ```
 
-## Step 6: Handle Cleanup
+## Step 6: Inject Scoped CSS
 
 ```javascript
 export function setup(api) {
-  const box = document.createElement('div');
-  // ... build UI ...
+  api.injectCSS(meta.id, `
+    .my-counter {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      padding: 24px;
+      border-radius: 16px;
+      text-align: center;
+    }
+    .my-counter button {
+      background: rgba(255,255,255,0.2);
+      border: none;
+      color: white;
+      padding: 10px 24px;
+      border-radius: 8px;
+      font-size: 18px;
+      cursor: pointer;
+    }
+    .my-counter button:hover {
+      background: rgba(255,255,255,0.3);
+    }
+  `);
 
-  api.bus.on('plugin:unload', (id) => {
-    if (id === meta.id) box.remove();
-  });
+  const container = api.container;
+  container.innerHTML = `
+    <div class="my-counter">
+      <div style="font-size: 14px; opacity: 0.8;">Counter</div>
+      <div id="count" style="font-size: 48px; font-weight: 700; margin: 16px 0;">0</div>
+      <button id="increment">+</button>
+    </div>
+  `;
+}
+```
+
+## Step 7: Handle Cleanup
+
+```javascript
+let currentApi = null;
+
+export function setup(api) {
+  currentApi = api;
+  // ... setup code ...
 }
 
 export function teardown() {
+  currentApi?.removeCSS(meta.id);
   console.log('Plugin cleaned up');
 }
 ```
 
-## Step 7: Install and Test
+## Step 8: Show Notifications
+
+```javascript
+export function setup(api) {
+  const container = api.container;
+  container.innerHTML = `
+    <div style="padding: 20px; text-align: center;">
+      <button id="notify">Notify me!</button>
+    </div>
+  `;
+
+  container.querySelector('#notify').addEventListener('click', () => {
+    api.notify('Button clicked!', 'success', 3000);
+  });
+}
+```
+
+## Step 9: Install and Test
 
 ### Option A: Manual Install
 
 1. Right-click the board → Plugin Manager
-2. Scroll to "Install manually by URL"
+2. Click **Install via URL**
 3. Enter ID and URL: `http://localhost:3000/plugins/my-plugin/plugin.js`
-4. Click **Install from URL**
+4. Click **Install**
 
-### Option B: Edit plugins.json
+### Option B: Debug in Console
 
-```json
-{
-  "id": "my-plugin",
-  "url": "./plugins/my-plugin/plugin.js",
-  "name": "My Plugin"
-}
+```javascript
+// In browser DevTools:
+await window.blankBoard.api.installPlugin(
+  'my-plugin',
+  'http://localhost:3000/plugins/my-plugin/plugin.js',
+  'My Plugin'
+);
 ```
-
-Clear localStorage and reload.
 
 ## Debugging
 
@@ -172,9 +253,97 @@ Open browser DevTools:
 ```javascript
 // Access the core API
 window.blankBoard.api.registry.getAll();
+window.blankBoard.api.version;  // → "4.0.0"
 
 // Emit test events
 window.blankBoard.bus.emit('test', { hello: true });
+
+// Check storage
+window.blankBoard.api.storage.list();
+
+// Reload a plugin
+await window.blankBoard.api.reloadPlugin('my-plugin');
+```
+
+## Complete Example
+
+Here's a full plugin using all the patterns above:
+
+```javascript
+export const meta = {
+  id: 'my-awesome-plugin',
+  name: 'My Awesome Plugin',
+  version: '1.0.0',
+  compat: '>=3.3.0'
+};
+
+let currentApi = null;
+
+export function setup(api) {
+  currentApi = api;
+
+  // Inject scoped styles
+  api.injectCSS(meta.id, `
+    .maw-widget {
+      background: #1a1a2e;
+      color: #eee;
+      padding: 24px;
+      border-radius: 16px;
+      font-family: system-ui, sans-serif;
+    }
+    .maw-btn {
+      background: #7c6fff;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-top: 12px;
+    }
+  `);
+
+  // Restore state
+  const count = api.storage.getForPlugin(meta.id, 'count') || 0;
+  const pos = api.storage.getForPlugin(meta.id, 'pos');
+
+  // Container
+  const container = api.container;
+  if (pos) {
+    container.style.left = pos.left + 'px';
+    container.style.top = pos.top + 'px';
+  }
+
+  container.innerHTML = `
+    <div class="maw-widget">
+      <h3 style="margin: 0 0 8px 0;">Awesome Plugin</h3>
+      <div>Count: <span id="maw-count">${count}</span></div>
+      <button class="maw-btn" id="maw-inc">+ Increment</button>
+    </div>
+  `;
+
+  container.querySelector('#maw-inc').addEventListener('click', () => {
+    const el = container.querySelector('#maw-count');
+    const newCount = parseInt(el.textContent) + 1;
+    el.textContent = newCount;
+    api.storage.setForPlugin(meta.id, 'count', newCount);
+    api.bus.emit('counter:changed', { value: newCount });
+    api.notify(`Count: ${newCount}`, 'info', 1500);
+  });
+
+  // Save position on drag
+  api.bus.on('plugin:dragend', ({ el }) => {
+    if (el.dataset.pluginId === meta.id) {
+      api.storage.setForPlugin(meta.id, 'pos', {
+        left: parseInt(el.style.left),
+        top: parseInt(el.style.top)
+      });
+    }
+  });
+}
+
+export function teardown() {
+  currentApi?.removeCSS(meta.id);
+}
 ```
 
 <CardGroup cols={2}>

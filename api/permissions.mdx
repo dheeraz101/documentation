@@ -1,0 +1,100 @@
+---
+title: Permissions
+description: "Control cross-plugin access and capabilities"
+---
+
+## Overview
+
+Blank Board includes a permissions system that controls what plugins can do to other plugins' containers. This prevents unauthorized plugins from modifying or moving other plugins' UI.
+
+## api.setPluginPermissions(pluginId, permissions)
+
+Set permissions for a plugin.
+
+```javascript
+api.setPluginPermissions('plugin-manager', {
+  isSystem: true,
+  canModifyOthers: true,
+  canMoveOthers: true
+});
+```
+
+### Signature
+
+```javascript
+api.setPluginPermissions(pluginId: string, permissions?: {
+  canMoveOthers?: boolean;
+  canModifyOthers?: boolean;
+  isSystem?: boolean;
+}): void
+```
+
+| Permission | Type | Default | Description |
+|------------|------|---------|-------------|
+| `canMoveOthers` | `boolean` | `false` | Can move other plugins' containers |
+| `canModifyOthers` | `boolean` | `false` | Can modify other plugins' DOM via `updatePlugin()` |
+| `isSystem` | `boolean` | `false` | Marks plugin as a system plugin (informational) |
+
+### Default Permissions
+
+All plugins start with these defaults:
+
+```javascript
+{
+  canMoveOthers: false,
+  canModifyOthers: false,
+  isSystem: false
+}
+```
+
+### How It Works
+
+When `api.updatePlugin(targetId, updater)` is called:
+
+1. If the caller is updating **its own** container → always allowed
+2. If the caller is updating **another** plugin's container → checked against `canModifyOthers`
+3. If the caller lacks permission → the update is silently blocked (logged to console)
+
+```javascript
+// Plugin A sets permissions
+api.setPluginPermissions('plugin-a', { canModifyOthers: true });
+
+// Plugin A can now modify Plugin B's container
+api.updatePlugin('plugin-b', (el) => {
+  el.style.borderColor = 'blue';  // ✅ Allowed
+});
+
+// Plugin C (no permissions) tries to modify Plugin B
+api.updatePlugin('plugin-b', (el) => {
+  el.style.borderColor = 'red';  // ❌ Blocked, console warning
+});
+```
+
+## System Plugins
+
+The **Plugin Manager** is the primary system plugin. It gets elevated permissions automatically:
+
+```javascript
+// Set during plugin loading in core.js:
+api.setPluginPermissions(def.id, {
+  isSystem: def.id === 'plugin-manager',
+  canModifyOthers: def.id === 'plugin-manager',
+  canMoveOthers: true
+});
+```
+
+System plugins cannot be deleted by the Plugin Manager (they show "System Protected" instead of delete/pause buttons).
+
+## Security Model
+
+| Scenario | Allowed? |
+|----------|----------|
+| Plugin modifying its own container | ✅ Always |
+| Plugin modifying another (with permission) | ✅ Yes |
+| Plugin modifying another (no permission) | ❌ Blocked |
+| Plugin Manager modifying any plugin | ✅ Always |
+| Deleting Plugin Manager | ❌ Protected |
+
+<Info>
+  The permissions system is runtime-only — it's not persisted to localStorage. Permissions are set during plugin loading and reset on page reload.
+</Info>

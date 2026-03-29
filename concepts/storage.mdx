@@ -25,7 +25,7 @@ const theme = api.storage.get('my-plugin-theme');
 
 ### `api.storage.set(key, value)`
 
-Store a value. Automatically serializes to JSON.
+Store a value. Automatically serializes to JSON. Emits a `storage:change` event.
 
 ```javascript
 api.storage.set('my-counter', 42);
@@ -50,38 +50,82 @@ const keys = api.storage.list();
 // → ['board-plugins-registry', 'my-counter', ...]
 ```
 
-## Best Practices
+### `api.storage.clear()`
 
-### Prefix Your Keys
+Clears all localStorage data. Use with extreme caution.
 
-Always prefix storage keys with your plugin ID to avoid collisions:
+## Plugin-Scoped Storage
+
+Instead of manually prefixing keys, use the plugin-scoped methods. They automatically prefix with `plugin:{pluginId}:`.
+
+### `api.storage.getForPlugin(pluginId, key)`
 
 ```javascript
-// ✅ Good
-api.storage.get('sticky-notes-list');
-api.storage.set('clock-24h', true);
+const theme = api.storage.getForPlugin(meta.id, 'theme');
+// Reads from localStorage key: "plugin:my-plugin:theme"
+```
 
-// ❌ Bad — might conflict with other plugins
-api.storage.get('data');
-api.storage.set('settings', { ... });
+### `api.storage.setForPlugin(pluginId, key, value)`
+
+```javascript
+api.storage.setForPlugin(meta.id, 'theme', 'dark');
+// Writes to localStorage key: "plugin:my-plugin:theme"
+```
+
+<Info>
+  The Sample Theme plugin uses `setForPlugin`/`getForPlugin` to persist theme settings with automatic key scoping.
+</Info>
+
+## Storage Change Events
+
+Every `set()` and `setForPlugin()` call emits a `storage:change` event:
+
+```javascript
+api.bus.on('storage:change', ({ key, value, oldValue, pluginId }) => {
+  console.log(`${key} changed from`, oldValue, 'to', value);
+  if (pluginId) console.log(`Changed by plugin: ${pluginId}`);
+});
+```
+
+| Field | Description |
+|-------|-------------|
+| `key` | The storage key (full key, including `plugin:` prefix for scoped storage) |
+| `value` | The new value |
+| `oldValue` | The previous value |
+| `pluginId` | *(only for `setForPlugin`)* The plugin that made the change |
+
+## Best Practices
+
+### Use Plugin-Scoped Storage
+
+```javascript
+// ✅ Good — automatic scoping, no collisions
+api.storage.setForPlugin(meta.id, 'theme', 'dark');
+api.storage.getForPlugin(meta.id, 'theme');
+
+// ⚠️ Works, but manual prefixing
+api.storage.set(`${meta.id}-theme`, 'dark');
+api.storage.get(`${meta.id}-theme`);
 ```
 
 ### Store Positions
 
 ```javascript
 // Save position on drag end
-el.addEventListener('mouseup', () => {
-  api.storage.set('my-plugin-pos', {
-    left: parseInt(el.style.left),
-    top: parseInt(el.style.top)
-  });
+api.bus.on('plugin:dragend', ({ el }) => {
+  if (el.dataset.pluginId === meta.id) {
+    api.storage.setForPlugin(meta.id, 'pos', {
+      left: parseInt(el.style.left),
+      top: parseInt(el.style.top)
+    });
+  }
 });
 
 // Restore on load
-const pos = api.storage.get('my-plugin-pos');
+const pos = api.storage.getForPlugin(meta.id, 'pos');
 if (pos) {
-  el.style.left = pos.left + 'px';
-  el.style.top = pos.top + 'px';
+  api.container.style.left = pos.left + 'px';
+  api.container.style.top = pos.top + 'px';
 }
 ```
 
@@ -89,10 +133,14 @@ if (pos) {
 
 ```javascript
 // With defaults
-const is24h = api.storage.get('clock-24h') ?? false;
-const showSeconds = api.storage.get('clock-seconds') ?? true;
+const is24h = api.storage.getForPlugin(meta.id, '24h') ?? false;
+const showSeconds = api.storage.getForPlugin(meta.id, 'seconds') ?? true;
 ```
 
 <Warning>
   `api.storage` uses `localStorage`, which has a ~5MB limit per origin. Don't store large blobs (images, long documents) — use IndexedDB for that.
 </Warning>
+
+<Info>
+  The core registry uses `board-plugins-registry` — avoid that key.
+</Info>

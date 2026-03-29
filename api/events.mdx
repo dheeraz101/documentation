@@ -3,9 +3,85 @@ title: Built-in Events
 description: "Events emitted by the Blank Board core"
 ---
 
-## Core Events
+## Core Lifecycle Events
 
-These events are emitted by the core kernel:
+These events are emitted by the core kernel during board lifecycle:
+
+### `board:ready`
+
+Emitted once when the board is fully initialized and the API is ready.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `boardEl` | `HTMLElement` | The board DOM element |
+
+```javascript
+api.bus.on('board:ready', ({ boardEl }) => {
+  console.log('Board is ready!', boardEl);
+});
+```
+
+### `board:allPluginsLoaded`
+
+Emitted after all enabled plugins have been loaded and their `setup()` called.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `total` | `number` | Total plugins in registry |
+| `enabled` | `number` | Number of enabled (loaded) plugins |
+
+```javascript
+api.bus.on('board:allPluginsLoaded', ({ total, enabled }) => {
+  console.log(`${enabled}/${total} plugins loaded`);
+});
+```
+
+<Tip>
+  Use this event for plugins that need to interact with other plugins after they've all initialized (e.g., hooks that depend on other plugins being ready).
+</Tip>
+
+### `board:restarted`
+
+Emitted after `api.restart()` completes and all plugins have been reloaded.
+
+```javascript
+api.bus.on('board:restarted', () => {
+  console.log('Board was restarted');
+});
+```
+
+### `board:resize`
+
+Emitted when the window is resized (debounced at 150ms).
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `width` | `number` | Window width in pixels |
+| `height` | `number` | Window height in pixels |
+
+```javascript
+api.bus.on('board:resize', ({ width, height }) => {
+  console.log(`Resized to ${width}×${height}`);
+});
+```
+
+## Plugin Lifecycle Events
+
+### `plugin:loaded`
+
+Emitted when a single plugin finishes loading.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | `string` | Plugin ID |
+| `meta` | `object` | The plugin's `meta` export |
+| `container` | `HTMLElement \| null` | The plugin's container element (if created) |
+
+```javascript
+api.bus.on('plugin:loaded', ({ id, meta }) => {
+  console.log(`${meta.name} v${meta.version} loaded`);
+});
+```
 
 ### `plugin:unload`
 
@@ -17,17 +93,112 @@ Emitted when a plugin is toggled off or deleted.
 
 ```javascript
 api.bus.on('plugin:unload', (pluginId) => {
-  if (pluginId === 'my-dependency') {
-    // handle dependency removal
-  }
-  if (pluginId === meta.id) {
-    // clean up my own DOM
-    myElement.remove();
+  if (pluginId === meta.id) myElement.remove();
+});
+```
+
+### `plugin:unloaded`
+
+Emitted after a plugin has been fully torn down and its container removed.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| Payload | `string` | The plugin ID that was unloaded |
+
+## Container & Docking Events
+
+### `plugin:docked`
+
+Emitted when a plugin container is docked into a target element.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `pluginId` | `string` | Plugin ID |
+| `el` | `HTMLElement` | The plugin's container element |
+| `target` | `HTMLElement` | The target element the plugin was docked into |
+
+### `plugin:undocked`
+
+Emitted when a plugin container is undocked and becomes floating.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `pluginId` | `string` | Plugin ID |
+| `el` | `HTMLElement` | The plugin's container element |
+
+### `plugin:updated`
+
+Emitted after `api.updatePlugin()` modifies a plugin's container.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `pluginId` | `string` | Plugin ID |
+| `el` | `HTMLElement` | The plugin's container element |
+
+## Drag Events
+
+### `plugin:dragstart`
+
+Emitted when a plugin container starts being dragged.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `el` | `HTMLElement` | The element being dragged |
+
+### `plugin:dragend`
+
+Emitted when a plugin container stops being dragged.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `el` | `HTMLElement` | The element that was dragged |
+
+```javascript
+api.bus.on('plugin:dragend', ({ el }) => {
+  if (el.dataset.pluginId === meta.id) {
+    // Save position
+    api.storage.set('my-pos', {
+      left: parseInt(el.style.left),
+      top: parseInt(el.style.top)
+    });
   }
 });
 ```
 
-## Plugin Events
+## UI Events
+
+### `contextmenu:open`
+
+Emitted when the board context menu (right-click) opens.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `x` | `number` | Mouse X position |
+| `y` | `number` | Mouse Y position |
+| `menu` | `HTMLElement` | The context menu DOM element |
+
+## Storage Events
+
+### `storage:change`
+
+Emitted whenever a value is stored via `api.storage.set()` or `api.storage.setForPlugin()`.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `key` | `string` | The storage key |
+| `value` | `any` | The new value |
+| `oldValue` | `any` | The previous value |
+| `pluginId` | `string` | *(only for setForPlugin)* The plugin that stored the value |
+
+```javascript
+api.bus.on('storage:change', ({ key, value, oldValue }) => {
+  if (key === 'my-plugin-theme') {
+    console.log(`Theme changed from ${oldValue} to ${value}`);
+  }
+});
+```
+
+## Plugin-Specific Events
 
 Plugins can define and emit their own events freely. Use `namespace:action` naming:
 
@@ -36,9 +207,8 @@ Plugins can define and emit their own events freely. Use `namespace:action` nami
 | Sticky Note | `sticky-note:created` | `{ id: string }` |
 | Sticky Note | `sticky-note:deleted` | `{ id: string }` |
 | Clock | `clock:tick` | `{ hours, minutes, seconds, date }` |
-| Counter | `counter:changed` | `{ value: number }` |
 
-## window.blankBoard
+## `window.blankBoard`
 
 After boot, the core exposes a global debug object:
 
@@ -47,6 +217,7 @@ After boot, the core exposes a global debug object:
 window.blankBoard.bus.emit('test', { hello: true });
 window.blankBoard.api.registry.getAll();
 window.blankBoard.api.installPlugin('debug', './debug.js', 'Debug');
+window.blankBoard.api.version;  // → "4.0.0"
 ```
 
 <Info>

@@ -7,11 +7,12 @@ description: "Share your plugin with the Blank Board community"
 
 Before publishing, make sure your plugin:
 
-- ✅ Exports valid `meta` and `setup`
-- ✅ Cleans up DOM on `plugin:unload`
-- ✅ Uses prefixed storage keys
+- ✅ Exports valid `meta` (with `id`, `name`, `version`) and `setup`
+- ✅ Exports `teardown()` for cleanup (removing CSS, clearing intervals, etc.)
+- ✅ Uses plugin-scoped storage (`getForPlugin`/`setForPlugin`)
 - ✅ Has no external dependencies (vanilla JS only)
 - ✅ Works in modern browsers
+- ✅ Handles the `plugin:unload` event or exports `teardown()`
 
 ## Step 1: Host Your Plugin
 
@@ -22,12 +23,12 @@ https://raw.githubusercontent.com/youruser/your-repo/main/plugin.js
 ```
 
 <Note>
-  The URL must be directly accessible — not behind a login or download page.
+  The URL must be directly accessible — not behind a login or download page. The core fetches the file directly via `fetch()`.
 </Note>
 
 ## Step 2: Fork the Community Repo
 
-Fork [blank-board-plugins](https://github.com/dheeraz101/Empty_Plugins) on GitHub.
+Fork [Empty_Plugins](https://github.com/dheeraz101/Empty_Plugins) on GitHub.
 
 ## Step 3: Add Your Entry
 
@@ -48,7 +49,7 @@ Edit `plugins.json` and add:
 |-------|----------|-------------|
 | `id` | ✅ | Unique kebab-case identifier |
 | `name` | ✅ | Display name |
-| `url` | ✅ | Public URL to the `.js` file |
+| `url` | ✅ | Public URL to the `.js` file (must end with `.js`) |
 | `description` | ✅ | What the plugin does |
 | `author` | ✅ | Your GitHub username |
 | `icon` | ❌ | Emoji icon (defaults to 📦) |
@@ -60,15 +61,72 @@ Edit `plugins.json` and add:
 3. Open a PR against `main`
 4. Use the title: `add: your-plugin-name`
 
-## Plugin Guidelines
+## Plugin Checklist
 
 - ✅ **Self-contained** — use the event bus, not imports
-- ✅ **Clean up** — handle `plugin:unload`
-- ✅ **Prefix storage** — `your-plugin-id-key`
+- ✅ **Clean up** — export `teardown()` that removes CSS, clears intervals, removes event listeners
+- ✅ **Scoped storage** — use `getForPlugin`/`setForPlugin`
 - ✅ **Mobile-friendly** — test on smaller screens
-- ❌ **No eval()** — security risk
-- ❌ **No undisclosed API calls** — respect privacy
+- ✅ **Valid meta** — includes `id`, `name`, `version`
+- ✅ **No eval()** — security risk
+- ✅ **No undisclosed API calls** — respect privacy
+- ✅ **CORS-compatible** — your hosting must allow cross-origin fetches
+
+## Example Template
+
+```javascript
+export const meta = {
+  id: 'your-plugin-id',
+  name: 'Your Plugin Name',
+  version: '1.0.0',
+  compat: '>=3.3.0'
+};
+
+let currentApi = null;
+
+export function setup(api) {
+  currentApi = api;
+
+  api.injectCSS(meta.id, `
+    .ypw-container {
+      background: #1a1a2e;
+      color: #eee;
+      padding: 20px;
+      border-radius: 12px;
+    }
+  `);
+
+  const container = api.container;
+  container.innerHTML = `
+    <div class="ypw-container">
+      <h3>Your Plugin</h3>
+      <p>Description here.</p>
+    </div>
+  `;
+
+  // Restore position
+  const pos = api.storage.getForPlugin(meta.id, 'pos');
+  if (pos) {
+    container.style.left = pos.left + 'px';
+    container.style.top = pos.top + 'px';
+  }
+
+  // Save position on drag
+  api.bus.on('plugin:dragend', ({ el }) => {
+    if (el.dataset.pluginId === meta.id) {
+      api.storage.setForPlugin(meta.id, 'pos', {
+        left: parseInt(el.style.left),
+        top: parseInt(el.style.top)
+      });
+    }
+  });
+}
+
+export function teardown() {
+  currentApi?.removeCSS(meta.id);
+}
+```
 
 ## After Approval
 
-Your plugin will appear in the Community Store tab of the Plugin Manager for all Blank Board users.
+Your plugin will appear in the **Community Store** tab of the Plugin Manager for all Blank Board users.

@@ -1,0 +1,153 @@
+---
+title: Containers & Docking
+description: "Plugin container lifecycle and docking system"
+---
+
+## Overview
+
+Every plugin automatically gets a **container** — a DOM element managed by the core that provides dragging, resizing, and docking. The container system lets plugins float freely on the board or dock into other elements.
+
+## api.container (Getter)
+
+Access the current plugin's container. If it doesn't exist yet, it's **auto-created** with default styling (absolute positioning, draggable, resizable).
+
+```javascript
+export function setup(api) {
+  const container = api.container;
+  container.innerHTML = '<p>I live in a managed container!</p>';
+  // Container is already:
+  // - appended to the board
+  // - draggable
+  // - resizable
+  // - positioned absolutely
+}
+```
+
+**Returns:** `HTMLElement`
+
+<Info>
+  `api.container` is a getter that only works during `setup()`. It relies on `api.getPluginId()` to identify the current plugin.
+</Info>
+
+## api.getContainer(pluginId)
+
+Get a specific plugin's container element by ID.
+
+```javascript
+const managerContainer = api.getContainer('plugin-manager');
+if (managerContainer) {
+  managerContainer.style.opacity = '0.9';
+}
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `pluginId` | `string` | The plugin ID |
+
+**Returns:** `HTMLElement | null`
+
+## api.removeContainer(pluginId)
+
+Remove and destroy a plugin's container. Also cleans up injected CSS.
+
+```javascript
+api.removeContainer('my-plugin');
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `pluginId` | `string` | The plugin ID |
+
+## api.mountPlugin(pluginId, targetEl)
+
+Dock a plugin's container into a target element. The container fills the target (100% width/height, relative positioning).
+
+```javascript
+// Dock my-plugin into a sidebar panel
+const panel = document.getElementById('my-panel');
+api.mountPlugin('my-plugin', panel);
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `pluginId` | `string` | The plugin to dock |
+| `targetEl` | `HTMLElement` | The target element to dock into |
+
+**Emits:** `plugin:docked`
+
+## api.undockPlugin(pluginId)
+
+Undock a plugin from its current docked position and make it float freely on the board.
+
+```javascript
+api.undockPlugin('my-plugin');
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `pluginId` | `string` | The plugin to undock |
+
+**Emits:** `plugin:undocked`
+
+<Info>
+  When a docked element is dragged, it's automatically undocked. You don't need to call `undockPlugin()` manually for drag-to-undock behavior.
+</Info>
+
+## api.updatePlugin(targetPluginId, updater)
+
+Safely modify a plugin's container element. Checks permissions before applying changes.
+
+```javascript
+api.updatePlugin('my-plugin', (el) => {
+  el.style.borderColor = 'red';
+  el.classList.add('highlighted');
+});
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `targetPluginId` | `string` | The plugin whose container to update |
+| `updater` | `function` | Callback receiving the container element |
+
+<Warning>
+  If the calling plugin doesn't have `canModifyOthers` permission, the update is silently blocked when targeting a different plugin.
+</Warning>
+
+**Emits:** `plugin:updated`
+
+## api.getPlugin(pluginId)
+
+Get a plugin's container element. Alias for `getContainer()`.
+
+```javascript
+const el = api.getPlugin('my-plugin');
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `pluginId` | `string` | The plugin ID |
+
+**Returns:** `HTMLElement | null`
+
+## Container Default Styles
+
+Containers created by `api.container` have these defaults:
+
+```css
+.bb-plugin-container {
+  position: absolute;
+  left: 20px;
+  top: 20px;
+  min-width: 120px;
+  min-height: 80px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+```
+
+## See Also
+
+- [Dragging & Resizing](/api/draggable) — `makeDraggable` and `makeResizable`
+- [Permissions](/api/permissions) — permission system for cross-plugin access
+- [Built-in Events](/api/events) — `plugin:docked`, `plugin:undocked`, etc.

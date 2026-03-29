@@ -15,7 +15,11 @@ export const meta = {
 };
 
 export function setup(api) {
-  // api.boardEl, api.bus, api.storage, etc.
+  // api.boardEl, api.bus, api.storage, api.container, etc.
+}
+
+export function teardown() {
+  // Optional: clean up on unload
 }
 ```
 
@@ -23,21 +27,42 @@ export function setup(api) {
 
 <Steps>
   <Step title="Registry Read">
-    Core reads the plugin registry from localStorage (or `plugins.json` on first load).
+    Core reads the plugin registry from localStorage.
+  </Step>
+  <Step title="Plugin Manager Check">
+    If the Plugin Manager is missing or disabled, it's auto-installed/enabled from its default GitHub URL.
+  </Step>
+  <Step title="Deduplication">
+    Duplicate plugin IDs are removed from the registry.
   </Step>
   <Step title="Filter Enabled">
     Only plugins with `enabled: true` are loaded.
   </Step>
-  <Step title="Dynamic Import">
-    Each plugin is loaded via `import(url)` — no bundling required.
+  <Step title="Import">
+    Each plugin is loaded via dynamic `import()`. For cross-origin URLs, the code is fetched and loaded via a blob URL (handles CORS).
   </Step>
   <Step title="Validation">
-    Core checks that the module exports `meta` and `setup`.
+    Core checks that the module exports `meta` (with `id`, `name`, `version`) and `setup` (a function).
+  </Step>
+  <Step title="Permissions">
+    Permissions are set on the plugin (system plugins get elevated access).
   </Step>
   <Step title="Setup">
-    `plugin.setup(api)` is called with the full API object.
+    `plugin.setup(api)` is called with a 5-second timeout.
+  </Step>
+  <Step title="Event">
+    `plugin:loaded` event is emitted. After all plugins load, `board:allPluginsLoaded` fires.
   </Step>
 </Steps>
+
+## The `meta` Object
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `id` | ✅ | Unique identifier. Use kebab-case |
+| `name` | ✅ | Display name in Plugin Manager |
+| `version` | ✅ | Semantic version (e.g., `"1.0.0"`) |
+| `compat` | ❌ | Core version compatibility range (e.g., `">=3.3.0"`) |
 
 ## Plugin Management
 
@@ -59,25 +84,45 @@ await api.togglePlugin('my-plugin');  // enable ↔ disable
 api.deletePlugin('my-plugin');  // permanent removal
 ```
 
+### Reloading
+
+```javascript
+await api.reloadPlugin('my-plugin');  // unload + reload
+```
+
+### Restarting
+
+```javascript
+await api.restart();  // unload all + reload all enabled
+```
+
 ## Unloading
 
-When a plugin is disabled or deleted, the core emits:
+When a plugin is disabled or deleted:
 
-```javascript
-api.bus.emit('plugin:unload', pluginId);
-```
-
-Plugins should listen for this to clean up their DOM elements:
-
-```javascript
-api.bus.on('plugin:unload', (id) => {
-  if (id === meta.id) myElement.remove();
-});
-```
+1. `plugin.teardown()` is called (if exported)
+2. The plugin's container is removed from the DOM
+3. `plugin:unloaded` event is emitted
 
 <Tip>
-  Export a `teardown()` function for cleanup logic (clearing intervals, removing listeners, etc.).
+  Always export a `teardown()` function for cleanup logic — clearing intervals, removing event listeners, removing injected CSS, etc.
 </Tip>
+
+```javascript
+let interval = null;
+let currentApi = null;
+
+export function setup(api) {
+  currentApi = api;
+  interval = setInterval(() => console.log('tick'), 1000);
+  api.injectCSS(meta.id, `.my-plugin { color: red; }`);
+}
+
+export function teardown() {
+  clearInterval(interval);
+  currentApi?.removeCSS(meta.id);
+}
+```
 
 ## Plugin Manager
 
@@ -86,5 +131,35 @@ The Plugin Manager is itself a plugin. It provides:
 - **Installed Plugins** tab — view, toggle, delete installed plugins
 - **Community Store** tab — browse and install from GitHub
 - **Manual Install** — paste any URL to install a plugin
+- **Docs link** — links to the official documentation
 
 Access it by **right-clicking** anywhere on the board.
+
+### Plugin Manager Features
+
+- Cannot be deleted or paused (system protected)
+- Auto-installed on first boot
+- Auto-re-enabled if disabled
+- Registers its own UI slot system via `api.registerUI()`
+
+## Security
+
+### Trusted Sources
+
+Plugins are checked against allowed sources:
+
+| Source | Description |
+|--------|-------------|
+| `system` | Core/official plugins |
+| `registry` | Installed from the Community Store |
+| `manual` | Installed via URL by the user |
+
+Plugins with unknown sources are blocked from loading.
+
+### Permissions
+
+The Plugin Manager gets elevated permissions to manage other plugins. See [Permissions](/api/permissions) for details.
+
+### Setup Timeout
+
+Each plugin has a **5-second timeout** for its `setup()` function. If it exceeds this, the plugin is considered failed and an error notification is shown.

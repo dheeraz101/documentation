@@ -46,15 +46,35 @@
         "tab": "API Reference",
         "groups": [
           {
-            "group": "API",
+            "group": "Core",
             "pages": [
               "api/board",
               "api/bus",
-              "api/storage",
-              "api/hooks",
-              "api/draggable",
+              "api/events",
+              "api/storage"
+            ]
+          },
+          {
+            "group": "Plugin Management",
+            "pages": [
               "api/registry",
-              "api/events"
+              "api/containers",
+              "api/permissions"
+            ]
+          },
+          {
+            "group": "Extensibility",
+            "pages": [
+              "api/hooks",
+              "api/css",
+              "api/ui"
+            ]
+          },
+          {
+            "group": "Interaction",
+            "pages": [
+              "api/draggable",
+              "api/utils"
             ]
           }
         ]

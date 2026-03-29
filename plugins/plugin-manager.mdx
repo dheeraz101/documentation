@@ -5,21 +5,23 @@ description: "Install, manage, and browse plugins"
 
 ## Overview
 
-The Plugin Manager is itself a plugin. It provides a UI for managing all installed plugins and browsing the Community Store.
+The Plugin Manager is itself a plugin (`plugin-manager`). It provides a UI for managing all installed plugins and browsing the Community Store.
 
 ## Access
 
 **Right-click** anywhere on the board (not on a plugin box) to open the Plugin Manager.
 
+Press **Escape** to close it.
+
 ## Features
 
 ### Installed Plugins Tab
 
-- View all installed plugins
+- View all installed plugins with icons and author info
 - See enabled/disabled status
 - **Pause** — toggle a plugin on/off
 - **Delete** — permanently remove a plugin
-- Protected — the Plugin Manager cannot delete itself
+- **System Protected** — the Plugin Manager cannot be paused or deleted
 
 ### Community Store Tab
 
@@ -32,18 +34,77 @@ The Plugin Manager is itself a plugin. It provides a UI for managing all install
 
 Install any plugin by URL:
 
-1. Enter a unique ID
-2. Paste the URL to a `.js` file
-3. Click **Install from URL**
+1. Click **Install via URL**
+2. Enter a unique ID
+3. Paste the URL to a `.js` file
+4. Click **Install**
+
+## Docs Link
+
+The Plugin Manager header includes a direct link to the [official documentation](https://empty-ad9a3406.mintlify.app/).
+
+## UI Slot System
+
+The Plugin Manager exposes a UI slot system that lets other plugins add elements to its header:
+
+### `api.registerUI(slot, element, id?)`
+
+```javascript
+// Add a button to the Plugin Manager header
+const btn = document.createElement('button');
+btn.textContent = '🎨';
+btn.onclick = openThemes;
+
+api.registerUI('header-actions', btn, 'theme-btn');
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `slot` | `string` | Slot name (currently: `'header-actions'`) |
+| `element` | `HTMLElement` | Element to inject |
+| `id` | `string` | *(Optional)* Data attribute ID |
+
+**Behavior:**
+- Automatically tracks ownership by plugin ID
+- When a plugin is toggled off, its UI elements are cleaned up
+- Elements are restored when the plugin is toggled back on
+
+<Info>
+  The Sample Theme plugin uses this API to add a 🎨 button to the Plugin Manager header.
+</Info>
+
+## Plugin Manager Auto-Recovery
+
+The Plugin Manager has built-in recovery:
+
+- **First boot:** auto-installs from its default GitHub URL
+- **Deleted:** re-installed on next page load
+- **Disabled:** re-enabled on next page load
+
+This ensures the Plugin Manager is always available.
+
+## Metadata
+
+```javascript
+export const meta = {
+  id: 'plugin-manager',
+  name: 'Plugin Manager',
+  version: '3.4.6',
+  compat: '>=3.3.0'
+};
+```
 
 ## Configuration
 
 The community store URL is set in the plugin source:
 
 ```javascript
-const COMMUNITY_JSON_URL = 'https://raw.githubusercontent.com/dheeraz101/Empty_Plugins/refs/heads/main/plugins.json';
+const COMMUNITY_URL = 'https://raw.githubusercontent.com/dheeraz101/Empty_Plugins/refs/heads/main/plugins.json';
 ```
 
 ## File
 
-`plugins/manager/plugin.js`
+Hosted externally at:
+```
+https://raw.githubusercontent.com/dheeraz101/Empty_Plugins/refs/heads/main/plugin-manager.js
+```

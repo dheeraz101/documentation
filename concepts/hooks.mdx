@@ -64,6 +64,25 @@ const items = api.useHook('sidebar:add-item', {
 // items → [divElement, divElement, ...]
 ```
 
+### `api.removeHook(name, handler)`
+
+Remove a previously registered handler. Must pass the same function reference.
+
+```javascript
+function myHandler(config) {
+  // ...
+  return result;
+}
+
+api.registerHook('my-hook', myHandler);
+// Later:
+api.removeHook('my-hook', myHandler);
+```
+
+<Tip>
+  Call `removeHook` in your `teardown()` function to clean up extension points when your plugin is disabled.
+</Tip>
+
 ## Hooks vs Events
 
 | | Events | Hooks |
@@ -73,15 +92,31 @@ const items = api.useHook('sidebar:add-item', {
 | **Direction** | One-way broadcast | Request → responses |
 | **Use case** | "Something happened" | "Add your thing to my thing" |
 
-## Example: Extensible Toolbar
+## When to Use Each
+
+### Use Events When:
+
+- You're broadcasting that something happened
+- You don't need a response
+- Multiple plugins might be interested
+- Example: `todo:added`, `theme:changed`
+
+### Use Hooks When:
+
+- You're exposing an extension point
+- You need return values from handlers
+- You want plugins to contribute to your UI
+- Example: `toolbar:add-button`, `sidebar:add-section`
+
+## Timing
+
+Hooks are typically registered during `setup()`, but they're also commonly invoked **after all plugins have loaded**. Use the `board:allPluginsLoaded` event for this:
 
 ```javascript
-// === toolbar/plugin.js ===
 export function setup(api) {
   const toolbar = document.createElement('div');
-  toolbar.style.cssText = 'display:flex; gap:8px; padding:12px;';
 
-  // Let other plugins add buttons
+  // Register my extension point
   api.registerHook('toolbar:add-button', (config) => {
     const btn = document.createElement('button');
     btn.textContent = config.label;
@@ -90,18 +125,56 @@ export function setup(api) {
     return btn;
   });
 
-  // After all plugins loaded, trigger hooks
-  setTimeout(() => {
-    api.useHook('toolbar:add-button', { label: 'Default', action: () => {} });
-  }, 100);
+  // After all plugins are loaded, let them add buttons
+  api.bus.once('board:allPluginsLoaded', () => {
+    api.useHook('toolbar:add-button', {
+      label: 'Default',
+      action: () => {}
+    });
+  });
+
+  api.boardEl.appendChild(toolbar);
+}
+```
+
+## Example: Extensible Sidebar
+
+```javascript
+// === sidebar/plugin.js ===
+export function setup(api) {
+  const sidebar = document.createElement('div');
+  sidebar.style.cssText = `
+    position: fixed; top: 60px; right: 10px;
+    display: flex; flex-direction: column; gap: 8px;
+  `;
+
+  // Let plugins add sections
+  api.registerHook('sidebar:add-section', (config) => {
+    const section = document.createElement('div');
+    section.innerHTML = `<h4>${config.title}</h4>`;
+    sidebar.appendChild(section);
+    return section;
+  });
+
+  // Let plugins add items
+  api.registerHook('sidebar:add-item', (config) => {
+    const item = document.createElement('button');
+    item.textContent = `${config.icon} ${config.label}`;
+    item.onclick = config.onClick;
+    sidebar.appendChild(item);
+    return item;
+  });
+
+  api.boardEl.appendChild(sidebar);
 }
 
 // === my-plugin/plugin.js ===
 export function setup(api) {
-  // Add a button to the toolbar
-  api.useHook('toolbar:add-button', {
-    label: '🚀 Launch',
-    action: () => console.log('launched!')
+  api.useHook('sidebar:add-section', { title: 'My Tools' });
+  api.useHook('sidebar:add-item', {
+    label: 'Settings',
+    icon: '⚙️',
+    onClick: () => openSettings()
   });
 }
 ```

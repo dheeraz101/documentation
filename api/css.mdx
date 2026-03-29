@@ -1,0 +1,132 @@
+---
+title: CSS Injection
+description: "Inject and remove plugin styles"
+---
+
+## Overview
+
+Plugins can inject CSS into the document. By default, CSS is **scoped** to the plugin's container for safety. Opt-in to global injection when needed.
+
+## api.injectCSS(pluginId, css, options?)
+
+Inject a `<style>` element for a plugin.
+
+```javascript
+// Scoped (default) — only applies inside the plugin's container
+api.injectCSS(meta.id, `
+  .my-widget {
+    background: #1a1a2e;
+    color: #eee;
+    padding: 16px;
+    border-radius: 8px;
+  }
+`);
+
+// Global — applies to the entire page
+api.injectCSS(meta.id, `
+  body { font-family: 'Fira Code', monospace; }
+`, { global: true });
+```
+
+### Signature
+
+```javascript
+api.injectCSS(pluginId: string, css: string, options?: { global?: boolean }): HTMLStyleElement
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `pluginId` | `string` | Plugin ID (use `meta.id`) |
+| `css` | `string` | CSS content to inject |
+| `options.global` | `boolean` | *(Optional)* If `true`, CSS is applied globally. Default: `false` |
+
+**Returns:** `HTMLStyleElement` — the created `<style>` element
+
+### Scoping Behavior
+
+When `global` is `false` (default), CSS is wrapped:
+
+```css
+/* Your CSS: */
+.my-widget { background: #1a1a2e; }
+
+/* Becomes: */
+[data-plugin-id="my-plugin"] {
+  font-family: system-ui, sans-serif;
+  box-sizing: border-box;
+}
+[data-plugin-id="my-plugin"] * {
+  box-sizing: inherit;
+}
+.my-widget { background: #1a1a2e; }
+```
+
+This ensures your styles only affect your plugin's container.
+
+<Info>
+  If called again with the same `pluginId`, the previous style element is **replaced** — not duplicated.
+</Info>
+
+## api.removeCSS(pluginId)
+
+Remove a plugin's injected styles.
+
+```javascript
+api.removeCSS(meta.id);
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `pluginId` | `string` | Plugin ID |
+
+## Teardown
+
+Always clean up CSS in your `teardown()` function:
+
+```javascript
+export function teardown() {
+  api.removeCSS(meta.id);
+}
+```
+
+## Full Example
+
+```javascript
+export const meta = {
+  id: 'styled-widget',
+  name: 'Styled Widget',
+  version: '1.0.0'
+};
+
+let currentApi = null;
+
+export function setup(api) {
+  currentApi = api;
+
+  api.injectCSS(meta.id, `
+    .sw-container {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 24px;
+      border-radius: 16px;
+      font-weight: 600;
+    }
+    .sw-container:hover {
+      transform: scale(1.02);
+      transition: transform 0.2s;
+    }
+  `);
+
+  const container = api.container;
+  container.innerHTML = `
+    <div class="sw-container">
+      <h3>Styled Plugin</h3>
+      <p>CSS is scoped to my container!</p>
+    </div>
+  `;
+}
+
+export function teardown() {
+  currentApi?.removeCSS(meta.id);
+}
+```

@@ -7,7 +7,7 @@ description: "Key-value storage with JSON serialization"
 
 `api.storage` wraps `localStorage` with automatic JSON serialization.
 
-## Methods
+## Global Storage Methods
 
 ### `storage.get(key)`
 
@@ -38,6 +38,10 @@ api.storage.set('my-obj', { name: 'test' });
 | `key` | `string` | Storage key |
 | `value` | `any` | Value to store (must be JSON-serializable) |
 
+<Info>
+  `storage.set()` emits a `storage:change` event automatically, so other plugins can react to storage updates.
+</Info>
+
 ### `storage.remove(key)`
 
 Delete a stored key.
@@ -57,13 +61,68 @@ const keys = api.storage.list();
 
 **Returns:** `string[]`
 
+### `storage.clear()`
+
+Clears **all** localStorage data. Use with caution.
+
+```javascript
+api.storage.clear();
+```
+
+<Warning>
+  `storage.clear()` removes everything, including other plugins' data and the plugin registry.
+</Warning>
+
+## Plugin-Scoped Storage
+
+These methods automatically prefix keys with `plugin:{pluginId}:`, preventing collisions between plugins. The current plugin ID is determined automatically.
+
+### `storage.getForPlugin(pluginId, key)`
+
+Retrieve a value scoped to a specific plugin.
+
+```javascript
+const theme = api.storage.getForPlugin(meta.id, 'theme');
+// Actually reads from localStorage key: "plugin:my-plugin:theme"
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `pluginId` | `string` | Plugin ID to scope to |
+| `key` | `string` | Storage key (no need to prefix manually) |
+
+**Returns:** `any | null`
+
+### `storage.setForPlugin(pluginId, key, value)`
+
+Store a value scoped to a specific plugin.
+
+```javascript
+api.storage.setForPlugin(meta.id, 'theme', 'dark');
+// Actually writes to localStorage key: "plugin:my-plugin:theme"
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `pluginId` | `string` | Plugin ID to scope to |
+| `key` | `string` | Storage key (no need to prefix manually) |
+| `value` | `any` | Value to store |
+
+<Info>
+  `setForPlugin()` emits a `storage:change` event with the `pluginId` field set, so listeners can identify which plugin changed.
+</Info>
+
 ## Best Practices
 
 <AccordionGroup>
-  <Accordion icon="tag" title="Prefix keys with plugin ID">
+  <Accordion icon="tag" title="Use plugin-scoped storage">
+    Prefer `getForPlugin`/`setForPlugin` over manual prefixing — it's safer and cleaner:
     ```javascript
-    api.storage.set('sticky-notes-list', notes);     // ✅
-    api.storage.set('data', notes);                   // ❌ might collide
+    // ✅ Good — automatic scoping
+    api.storage.setForPlugin(meta.id, 'theme', 'dark');
+
+    // ⚠️ Works, but manual prefixing
+    api.storage.set(`${meta.id}-theme`, 'dark');
     ```
   </Accordion>
   <Accordion icon="download" title="Use nullish coalescing for defaults">
@@ -76,3 +135,4 @@ const keys = api.storage.list();
 ## See Also
 
 - [Storage concept](/concepts/storage) — detailed guide with examples
+- [Persisting Data guide](/guides/persisting-data) — real-world patterns

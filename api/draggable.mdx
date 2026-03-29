@@ -1,11 +1,11 @@
 ---
-title: api.makeDraggable()
-description: "Make elements draggable by mouse"
+title: Dragging & Resizing
+description: "Make elements draggable and resizable"
 ---
 
-## Overview
+## api.makeDraggable()
 
-`api.makeDraggable(element)` makes any DOM element draggable on the board.
+Make any DOM element draggable on the board.
 
 ```javascript
 const box = document.createElement('div');
@@ -14,27 +14,36 @@ api.boardEl.appendChild(box);
 api.makeDraggable(box);
 ```
 
-## Signature
+### Signature
 
 ```javascript
-api.makeDraggable(element: HTMLElement): void
+api.makeDraggable(element: HTMLElement, handle?: HTMLElement): void
 ```
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `element` | `HTMLElement` | The element to make draggable |
+| `handle` | `HTMLElement` | *(Optional)* A child element to use as the drag handle. If omitted, the element itself is the handle. |
 
-## Behavior
+### Behavior
 
-- **Drag handle:** the element itself — click and drag anywhere
-- **Excluded from drag:** `<input>`, `<textarea>`, `<button>` — clicks pass through normally
+- **Drag handle:** the element itself, or the specified `handle` element
 - **Positioning:** sets `top` and `left` CSS properties
+- **z-index:** set to `Date.now()` on drag start (brings to front)
+- **Auto-undock:** if the element is docked, dragging undocks it automatically
 
 <Warning>
-  The element must have `position: absolute` for dragging to work. The `plugin-box` class includes this automatically.
+  The element must have `position: absolute` for dragging to work. The `plugin-box` class includes this automatically, and plugin containers created via `api.container` are positioned absolutely by default.
 </Warning>
 
-## Full Example
+### Events
+
+| Event | When |
+|-------|------|
+| `plugin:dragstart` | Drag begins |
+| `plugin:dragend` | Drag ends |
+
+### Full Example
 
 ```javascript
 export function setup(api) {
@@ -52,11 +61,65 @@ export function setup(api) {
   api.makeDraggable(box);
 
   // Save position after drag
-  box.addEventListener('mouseup', () => {
-    api.storage.set('my-plugin-pos', {
-      left: parseInt(box.style.left),
-      top: parseInt(box.style.top)
-    });
+  api.bus.on('plugin:dragend', ({ el }) => {
+    if (el === box) {
+      api.storage.set('my-plugin-pos', {
+        left: parseInt(box.style.left),
+        top: parseInt(box.style.top)
+      });
+    }
   });
 }
 ```
+
+## api.makeResizable()
+
+Add a resize handle to any element, allowing the user to resize it by dragging the bottom-right corner.
+
+```javascript
+const box = document.createElement('div');
+api.boardEl.appendChild(box);
+api.makeResizable(box);
+```
+
+### Signature
+
+```javascript
+api.makeResizable(element: HTMLElement): void
+```
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `element` | `HTMLElement` | The element to make resizable |
+
+### Behavior
+
+- Appends a 14×14px resize handle at the bottom-right corner
+- Cursor changes to `nwse-resize` on the handle
+- Sets `width` and `height` CSS properties on drag
+- The handle does **not** interfere with the element's content
+
+### Full Example
+
+```javascript
+export function setup(api) {
+  const box = document.createElement('div');
+  box.className = 'plugin-box';
+  box.style.cssText = `
+    left: 100px;
+    top: 100px;
+    width: 300px;
+    height: 200px;
+    padding: 20px;
+  `;
+  box.innerHTML = '<p>Drag & resize me!</p>';
+
+  api.boardEl.appendChild(box);
+  api.makeDraggable(box);
+  api.makeResizable(box);
+}
+```
+
+<Info>
+  Both `api.makeDraggable()` and `api.makeResizable()` are automatically called on plugin containers created via `api.container`.
+</Info>

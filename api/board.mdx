@@ -76,10 +76,26 @@ Use the `plugin-box` class for standard card styling:
 
 ## Removing Elements
 
-Always clean up when your plugin is unloaded:
+Always clean up when your plugin is unloaded. Export a `teardown()` function:
+
+```javascript
+export function teardown() {
+  myElement.remove();
+}
+```
+
+Or listen for the event:
 
 ```javascript
 api.bus.on('plugin:unload', (id) => {
   if (id === meta.id) myElement.remove();
 });
+```
+
+## Version
+
+The API exposes a version string:
+
+```javascript
+console.log(api.version);  // → "4.0.0"
 ```
