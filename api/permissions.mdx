@@ -98,3 +98,31 @@ System plugins cannot be deleted by the Plugin Manager (they show "System Protec
 <Info>
   The permissions system is runtime-only — it's not persisted to localStorage. Permissions are set during plugin loading and reset on page reload.
 </Info>
+
+## Declared permissions (`meta.permissions`)
+
+Plugins declare their requested runtime capabilities in `meta.permissions`. These names are checked by the core when a plugin attempts actions that require explicit consent.
+
+| Permission | Meaning |
+|---|---|
+| `storage` | Plugin can use its own namespaced storage. |
+| `ui` | Plugin can create/use its own container and UI helpers. |
+| `bus` | Plugin can listen/emit events through the event bus. |
+| `hooks` | Plugin can register/use hooks. |
+| `layout` | Plugin can use draggable/resizable helpers. |
+| `clipboard` | Plugin can write text to clipboard through `api.copyText`. |
+| `network` | Plugin can use `api.fetch`. |
+| `globalCSS` | Plugin can inject global CSS. Dangerous. Use only for trusted themes/system plugins. |
+| `theme` | Plugin can act as a theme-level plugin. |
+| `modifyOthers` | Plugin can access/modify other plugin containers. System only. |
+| `moveOthers` | Plugin can dock/undock/move other plugins. System only. |
+| `rawBoard` | Plugin can directly access the real board element without warnings. System only. |
+| `system` | Full trust mode. Reserved for Plugin Manager and official core plugins. |
+
+Default normal plugin permissions:
+
+```js
+['storage', 'ui', 'bus', 'hooks', 'layout']
+```
+
+System plugins receive broader permissions because they manage the board itself. Do not give `system` permission to community plugins unless you personally audited the code.

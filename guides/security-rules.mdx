@@ -1,0 +1,44 @@
+---
+title: Security and Privacy Rules
+description: Guidance on plugin security and review checklist
+---
+
+# Security and Privacy Rules
+
+## Important truth
+
+Blank Board v4 runs plugins in the same browser page. This is safer than before because plugins receive a restricted API and the core tracks cleanup, but it is not a hard security sandbox against malicious JavaScript.
+
+For full hostile-plugin isolation, future versions should support iframe or Web Worker plugins.
+
+## What v4 protects against
+
+- Plugin setup crashes.
+- Plugin event listener leaks.
+- Plugin timer leaks when using `api.setTimeout` / `api.setInterval`.
+- Plugin CSS cleanup.
+- Plugin storage wiping the whole board.
+- Broken plugins repeatedly crashing the board.
+- Plugin Manager deletion/disable accidents.
+- Duplicate plugin IDs.
+- Invalid plugin URLs.
+- Plugin ID mismatch between registry and module.
+
+## What v4 cannot fully prevent
+
+A malicious plugin loaded into the same page can still attempt direct access to browser globals. Only install trusted community plugins, or move untrusted plugins to iframe mode in a future v5 architecture.
+
+## Plugin review checklist
+
+Before adding a plugin to the community registry:
+
+- Does it export `meta` and `setup(api)`?
+- Does `meta.id` match the registry id?
+- Does it declare only the permissions it needs?
+- Does it avoid direct `localStorage`?
+- Does it avoid direct `document.body` mutations?
+- Does it avoid global CSS?
+- Does `setup()` return a cleanup function?
+- Does it avoid external network calls unless clearly needed?
+- Does it avoid eval/new Function?
+- Does it use safe DOM APIs instead of unsafe HTML where possible?

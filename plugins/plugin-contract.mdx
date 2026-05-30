@@ -1,0 +1,51 @@
+---
+title: Plugin Contract
+description: Contract and rules for Blank Board plugins (v4)
+---
+
+# Blank Board Plugin Contract v4
+
+Blank Board plugins are ES modules. Every plugin must export `meta` and `setup(api)`.
+
+```js
+export const meta = {
+  id: 'my-plugin',
+  name: 'My Plugin',
+  version: '1.0.0',
+  compat: '>=4.0.0',
+  type: 'widget',
+  permissions: ['storage', 'ui', 'bus', 'hooks', 'layout']
+};
+
+export function setup(api) {
+  const root = api.container;
+  root.textContent = 'Hello Blank Board';
+
+  return () => {
+    // cleanup timers, external listeners, observers, etc.
+  };
+}
+```
+
+## Hard rules
+
+1. Use `api.container`, not `document.body`, for plugin UI.
+2. Use `api.storage`, not `localStorage` directly.
+3. Use `api.bus.on()` and keep the returned cleanup function if needed.
+4. `setup()` should return a cleanup function.
+5. Do not mutate another plugin unless your plugin has explicit system-level permission.
+6. Do not use global CSS unless your plugin is a system/theme plugin.
+7. Do not block setup for more than a few seconds.
+8. Do not overwrite globals like `window`, `document`, `Array.prototype`, or `Element.prototype`.
+9. Use unique CSS class prefixes based on your plugin id.
+10. Treat user data as private. Do not send data over network unless your plugin clearly declares `network` permission.
+
+## Lifecycle
+
+- Core imports the plugin module.
+- Core validates `meta` and `setup`.
+- Core creates a per-plugin API wrapper.
+- Core runs `setup(api)` with timeout protection.
+- Core tracks cleanup, CSS, timers, event listeners, and containers.
+- On disable/delete/reload, core removes tracked resources.
+- Repeated crashes auto-block the plugin.

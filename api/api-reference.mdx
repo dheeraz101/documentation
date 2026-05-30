@@ -1,0 +1,88 @@
+---
+title: Plugin API Reference
+description: API surface for plugin authors (v4)
+---
+
+# Plugin API Reference v4
+
+## Basic fields
+
+```js
+api.version
+api.pluginId
+api.meta
+api.permissions
+api.container
+```
+
+## Storage
+
+Namespaced per plugin:
+
+```js
+api.storage.get('key', fallback)
+api.storage.set('key', value)
+api.storage.remove('key')
+api.storage.list()
+api.storage.clearPluginData()
+```
+
+Plugins cannot clear the whole board storage.
+
+## Events
+
+```js
+const off = api.bus.on('event:name', payload => {})
+api.bus.emit('event:name', { hello: true })
+api.bus.once('event:name', payload => {})
+off()
+```
+
+Listeners are tracked by owner and removed when the plugin unloads.
+
+## CSS
+
+```js
+api.injectCSS(`
+  .my-plugin-title { font-weight: 700; }
+`)
+```
+
+CSS is scoped by default. Global CSS requires `globalCSS` permission:
+
+```js
+api.injectCSS(':root { --board-bg: black; }', { global: true })
+```
+
+## Cleanup
+
+Preferred:
+
+```js
+export function setup(api) {
+  const off = api.bus.on('x', () => {});
+  api.onCleanup(off);
+
+  return () => {
+    off();
+  };
+}
+```
+
+## Timers
+
+Use API timers so core can clean them up:
+
+```js
+const id = api.setInterval(() => {}, 1000);
+api.clearInterval(id);
+```
+
+## Clipboard and network
+
+Requires permissions:
+
+```js
+await api.copyText('hello');
+const res = await api.fetch('https://example.com/data.json');
+```
