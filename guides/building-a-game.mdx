@@ -1,0 +1,177 @@
+---
+title: "Blueprint: Building a Game on Blank Board"
+description: "Step-by-step guide to building interactive games with Canvas, Game Loops, and Keyboard Controls"
+---
+
+## Overview
+
+Because Blank Board allows plugins to render anything inside `api.container` and utilize `api.requestAnimationFrame`, you can transform the board into an arcade machine, retro console, or interactive simulation.
+
+In this guide, we will build a classic **Snake Game** with:
+- HTML5 Canvas 60FPS Game Loop via `api.requestAnimationFrame`
+- Keyboard input handling
+- High-score persistence via `api.storage`
+- Clean auto-disposal on unload
+
+---
+
+## Complete Game Plugin Code
+
+Create `snake-game.js`:
+
+```javascript
+export const meta = {
+  id: 'snake-game',
+  name: 'Snake Arcade',
+  version: '1.0.0'
+};
+
+export function setup(api) {
+  // 1. Scoped Styling
+  api.injectCSS(`
+    .snake-wrapper {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background: #11141a;
+      color: #fff;
+      padding: 16px;
+      border-radius: 12px;
+      font-family: monospace;
+    }
+    .snake-header {
+      display: flex;
+      justify-content: space-between;
+      width: 100%;
+      margin-bottom: 10px;
+      font-size: 14px;
+    }
+    canvas {
+      background: #000;
+      border: 2px solid #2a313d;
+      border-radius: 8px;
+    }
+  `);
+
+  // 2. Set default window size
+  api.window.setSize(360, 420);
+
+  // 3. Build UI
+  const container = api.container;
+  container.innerHTML = `
+    <div class="snake-wrapper">
+      <div class="snake-header">
+        <span>Score: <strong id="score">0</strong></span>
+        <span>High: <strong id="high-score">0</strong></span>
+      </div>
+      <canvas id="game-canvas" width="300" height="300"></canvas>
+    </div>
+  `;
+
+  const canvas = container.querySelector('#game-canvas');
+  const ctx = canvas.getContext('2d');
+  const scoreEl = container.querySelector('#score');
+  const highScoreEl = container.querySelector('#high-score');
+
+  // 4. Game State
+  const gridSize = 15;
+  const tileCount = canvas.width / gridSize;
+  let snake = [{ x: 10, y: 10 }];
+  let velocity = { x: 0, y: 0 };
+  let food = { x: 5, y: 5 };
+  let score = 0;
+  let highScore = api.storage.get('high-score') || 0;
+  highScoreEl.textContent = highScore;
+
+  let lastTick = 0;
+  const tickInterval = 100; // snake speed (100ms)
+
+  // 5. Controls
+  api.bus.on('window:focus', ({ pluginId }) => {
+    if (pluginId === meta.id) console.log('Game Focused');
+  });
+
+  const onKey = (e) => {
+    switch (e.key) {
+      case 'ArrowUp': if (velocity.y === 0) velocity = { x: 0, y: -1 }; break;
+      case 'ArrowDown': if (velocity.y === 0) velocity = { x: 0, y: 1 }; break;
+      case 'ArrowLeft': if (velocity.x === 0) velocity = { x: -1, y: 0 }; break;
+      case 'ArrowRight': if (velocity.x === 0) velocity = { x: 1, y: 0 }; break;
+    }
+  };
+  window.addEventListener('keydown', onKey);
+
+  // 6. Game Loop with api.requestAnimationFrame
+  function gameLoop(timestamp) {
+    if (timestamp - lastTick > tickInterval) {
+      lastTick = timestamp;
+      update();
+    }
+    render();
+    api.requestAnimationFrame(gameLoop);
+  }
+
+  function update() {
+    if (velocity.x === 0 && velocity.y === 0) return;
+
+    const head = { x: snake[0].x + velocity.x, y: snake[0].y + velocity.y };
+
+    // Wall wrap
+    if (head.x < 0) head.x = tileCount - 1;
+    if (head.x >= tileCount) head.x = 0;
+    if (head.y < 0) head.y = tileCount - 1;
+    if (head.y >= tileCount) head.y = 0;
+
+    // Self Collision
+    if (snake.some(segment => segment.x === head.x && segment.y === head.y)) {
+      api.notify(`Game Over! Score: ${score}`, 'warning');
+      snake = [{ x: 10, y: 10 }];
+      velocity = { x: 0, y: 0 };
+      score = 0;
+      scoreEl.textContent = score;
+      return;
+    }
+
+    snake.unshift(head);
+
+    // Food Collision
+    if (head.x === food.x && head.y === food.y) {
+      score += 10;
+      scoreEl.textContent = score;
+      if (score > highScore) {
+        highScore = score;
+        highScoreEl.textContent = highScore;
+        api.storage.set('high-score', highScore);
+      }
+      food = {
+        x: Math.floor(Math.random() * tileCount),
+        y: Math.floor(Math.random() * tileCount)
+      };
+    } else {
+      snake.pop();
+    }
+  }
+
+  function render() {
+    ctx.fillStyle = '#0f1318';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Draw Food
+    ctx.fillStyle = '#ff4757';
+    ctx.fillRect(food.x * gridSize, food.y * gridSize, gridSize - 1, gridSize - 1);
+
+    // Draw Snake
+    ctx.fillStyle = '#2ed573';
+    snake.forEach((seg) => {
+      ctx.fillRect(seg.x * gridSize, seg.y * gridSize, gridSize - 1, gridSize - 1);
+    });
+  }
+
+  // Start loop
+  api.requestAnimationFrame(gameLoop);
+}
+
+export function teardown() {
+  // Core automatically terminates the requestAnimationFrame and disposes container!
+}
+```

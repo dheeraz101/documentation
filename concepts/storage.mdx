@@ -1,146 +1,75 @@
 ---
-title: Storage
-description: "Persist plugin data with localStorage"
+title: Storage & Persistence
+description: "Persist plugin data with LocalStorage and IndexedDB"
 ---
 
 ## Overview
 
-`api.storage` is a thin wrapper over `localStorage` with automatic JSON serialization.
+Blank Board provides a **hybrid storage engine**:
+1. **`api.storage` (LocalStorage)**: Synchronous, ultra-fast key-value persistence for small settings, preferences, and toggle states.
+2. **`api.storage.db` (IndexedDB)**: Asynchronous, quota-free storage for large binary blobs, audio tracks, canvas images, documents, and game states.
+
+---
+
+## 1. Fast Key-Value Storage (`api.storage`)
+
+In v5.0, `api.storage.get()` and `api.storage.set()` are automatically scoped to your plugin ID:
 
 ```javascript
-api.storage.set('my-counter', 42);
-const count = api.storage.get('my-counter');  // → 42
-```
+export function setup(api) {
+  // Store a preference
+  api.storage.set('theme', 'dark');
 
-## API
-
-### `api.storage.get(key)`
-
-Retrieve a value. Returns `null` if the key doesn't exist.
-
-```javascript
-const theme = api.storage.get('my-plugin-theme');
-// → "dark" or null
-```
-
-### `api.storage.set(key, value)`
-
-Store a value. Automatically serializes to JSON. Emits a `storage:change` event.
-
-```javascript
-api.storage.set('my-counter', 42);
-api.storage.set('my-list', [1, 2, 3]);
-api.storage.set('my-obj', { name: 'test', active: true });
-```
-
-### `api.storage.remove(key)`
-
-Delete a stored key.
-
-```javascript
-api.storage.remove('my-counter');
-```
-
-### `api.storage.list()`
-
-Returns an array of all localStorage keys.
-
-```javascript
-const keys = api.storage.list();
-// → ['board-plugins-registry', 'my-counter', ...]
-```
-
-### `api.storage.clear()`
-
-Clears all localStorage data. Use with extreme caution.
-
-## Plugin-Scoped Storage
-
-Instead of manually prefixing keys, use the plugin-scoped methods. They automatically prefix with `plugin:{pluginId}:`.
-
-### `api.storage.getForPlugin(pluginId, key)`
-
-```javascript
-const theme = api.storage.getForPlugin(meta.id, 'theme');
-// Reads from localStorage key: "plugin:my-plugin:theme"
-```
-
-### `api.storage.setForPlugin(pluginId, key, value)`
-
-```javascript
-api.storage.setForPlugin(meta.id, 'theme', 'dark');
-// Writes to localStorage key: "plugin:my-plugin:theme"
-```
-
-<Info>
-  The Sample Theme plugin uses `setForPlugin`/`getForPlugin` to persist theme settings with automatic key scoping.
-</Info>
-
-## Storage Change Events
-
-Every `set()` and `setForPlugin()` call emits a `storage:change` event:
-
-```javascript
-api.bus.on('storage:change', ({ key, value, oldValue, pluginId }) => {
-  console.log(`${key} changed from`, oldValue, 'to', value);
-  if (pluginId) console.log(`Changed by plugin: ${pluginId}`);
-});
-```
-
-| Field | Description |
-|-------|-------------|
-| `key` | The storage key (full key, including `plugin:` prefix for scoped storage) |
-| `value` | The new value |
-| `oldValue` | The previous value |
-| `pluginId` | *(only for `setForPlugin`)* The plugin that made the change |
-
-## Best Practices
-
-### Use Plugin-Scoped Storage
-
-```javascript
-// ✅ Good — automatic scoping, no collisions
-api.storage.setForPlugin(meta.id, 'theme', 'dark');
-api.storage.getForPlugin(meta.id, 'theme');
-
-// ⚠️ Works, but manual prefixing
-api.storage.set(`${meta.id}-theme`, 'dark');
-api.storage.get(`${meta.id}-theme`);
-```
-
-### Store Positions
-
-```javascript
-// Save position on drag end
-api.bus.on('plugin:dragend', ({ el }) => {
-  if (el.dataset.pluginId === meta.id) {
-    api.storage.setForPlugin(meta.id, 'pos', {
-      left: parseInt(el.style.left),
-      top: parseInt(el.style.top)
-    });
-  }
-});
-
-// Restore on load
-const pos = api.storage.getForPlugin(meta.id, 'pos');
-if (pos) {
-  api.container.style.left = pos.left + 'px';
-  api.container.style.top = pos.top + 'px';
+  // Read a preference (returns null if key does not exist)
+  const currentTheme = api.storage.get('theme') || 'system';
+  
+  // Remove a key
+  api.storage.remove('theme');
 }
 ```
 
-### Store Settings
+### Storage Change Events
+Whenever a storage key is modified, the event bus emits a `storage:change` event:
 
 ```javascript
-// With defaults
-const is24h = api.storage.getForPlugin(meta.id, '24h') ?? false;
-const showSeconds = api.storage.getForPlugin(meta.id, 'seconds') ?? true;
+api.bus.on('storage:change', ({ key, value, oldValue, pluginId }) => {
+  console.log(`Key ${key} changed from`, oldValue, 'to', value);
+});
 ```
 
-<Warning>
-  `api.storage` uses `localStorage`, which has a ~5MB limit per origin. Don't store large blobs (images, long documents) — use IndexedDB for that.
-</Warning>
+---
 
-<Info>
-  The core registry uses `board-plugins-registry` — avoid that key.
-</Info>
+## 2. Large Data & Blob Storage (`api.storage.db`)
+
+When building canvas drawing tools, audio recorders, music players, or games with large save files, use `api.storage.db` to bypass the 5MB `localStorage` limit:
+
+```javascript
+export function setup(api) {
+  const canvas = document.createElement('canvas');
+
+  // Save canvas image blob / base64 to IndexedDB
+  async function saveDrawing() {
+    const dataUrl = canvas.toDataURL();
+    await api.storage.db.set('saved-canvas', dataUrl);
+    api.notify('Canvas saved to IndexedDB!', 'success');
+  }
+
+  // Restore drawing from IndexedDB
+  async function loadDrawing() {
+    const dataUrl = await api.storage.db.get('saved-canvas');
+    if (dataUrl) {
+      const img = new Image();
+      img.onload = () => canvas.getContext('2d').drawImage(img, 0, 0);
+      img.src = dataUrl;
+    }
+  }
+}
+```
+
+### `api.storage.db` Methods
+
+| Method | Description |
+|---|---|
+| `api.storage.db.get(key)` | Asynchronously retrieves stored value or `null` |
+| `api.storage.db.set(key, value)` | Asynchronously stores any JSON object, string, array, or binary Blob |
+| `api.storage.db.delete(key)` | Deletes the specified key from IndexedDB |

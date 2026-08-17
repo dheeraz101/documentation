@@ -1,0 +1,142 @@
+---
+title: "Blueprint: Building Audio & Media Players"
+description: "How to build streaming audio players, visualizers, and WebAudio plugins on Blank Board"
+---
+
+## Overview
+
+Plugins on Blank Board can leverage HTML5 `<audio>`, the **WebAudio API**, and the **Service Registry** (`api.services`) to turn the board into a music workstation or ambient sound player.
+
+In this guide, we build an ambient sound synthesizer that:
+- Generates binaural beats / ambient white noise using the WebAudio API
+- Exposes an `audio-engine` service so other plugins can play sound effects
+- Stores user volume settings in `api.storage`
+
+---
+
+## Complete Media Player Code
+
+```javascript
+export const meta = {
+  id: 'ambient-synthesizer',
+  name: 'Ambient Studio',
+  version: '1.0.0'
+};
+
+export function setup(api) {
+  // 1. Inject Styles
+  api.injectCSS(`
+    .synth-card {
+      padding: 18px;
+      background: #181920;
+      color: #eceff4;
+      border-radius: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .synth-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .synth-btn {
+      background: #7c6fff;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+  `);
+
+  api.window.setSize(300, 220);
+
+  // 2. Audio Context & Synthesizer State
+  let audioCtx = null;
+  let oscillator = null;
+  let gainNode = null;
+  let isPlaying = false;
+
+  function initAudio() {
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      gainNode = audioCtx.createGain();
+      gainNode.gain.value = api.storage.get('volume') ?? 0.3;
+      gainNode.connect(audioCtx.destination);
+    }
+  }
+
+  // 3. Register Global Audio Service for other plugins
+  api.services.register('ambient-audio', {
+    playTone(freq = 440, duration = 0.5) {
+      initAudio();
+      const osc = audioCtx.createOscillator();
+      osc.frequency.value = freq;
+      osc.connect(gainNode);
+      osc.start();
+      osc.stop(audioCtx.currentTime + duration);
+    }
+  });
+
+  // 4. Build UI
+  const container = api.container;
+  container.innerHTML = `
+    <div class="synth-card">
+      <div class="synth-row">
+        <h3>🎵 Ambient Waves</h3>
+        <button id="play-btn" class="synth-btn">Play</button>
+      </div>
+      <div class="synth-row">
+        <label>Frequency (Hz):</label>
+        <input type="range" id="freq-slider" min="100" max="800" value="432">
+      </div>
+      <div class="synth-row">
+        <label>Volume:</label>
+        <input type="range" id="vol-slider" min="0" max="1" step="0.05" value="0.3">
+      </div>
+    </div>
+  `;
+
+  const playBtn = container.querySelector('#play-btn');
+  const freqSlider = container.querySelector('#freq-slider');
+  const volSlider = container.querySelector('#vol-slider');
+
+  playBtn.addEventListener('click', () => {
+    initAudio();
+    if (!isPlaying) {
+      oscillator = audioCtx.createOscillator();
+      oscillator.type = 'sine';
+      oscillator.frequency.value = parseFloat(freqSlider.value);
+      oscillator.connect(gainNode);
+      oscillator.start();
+      isPlaying = true;
+      playBtn.textContent = 'Pause';
+      playBtn.style.background = '#e74c3c';
+    } else {
+      oscillator?.stop();
+      oscillator?.disconnect();
+      isPlaying = false;
+      playBtn.textContent = 'Play';
+      playBtn.style.background = '#7c6fff';
+    }
+  });
+
+  freqSlider.addEventListener('input', (e) => {
+    if (oscillator) {
+      oscillator.frequency.value = parseFloat(e.target.value);
+    }
+  });
+
+  volSlider.addEventListener('input', (e) => {
+    const vol = parseFloat(e.target.value);
+    if (gainNode) gainNode.gain.value = vol;
+    api.storage.set('volume', vol);
+  });
+}
+
+export function teardown() {
+  // Clean up WebAudio Context if running
+}
+```

@@ -1,356 +1,140 @@
 ---
 title: Build Your First Plugin
-description: "Step-by-step guide to creating a Blank Board plugin"
+description: "Step-by-step guide to creating a modern Blank Board v5 plugin"
 ---
 
-This guide walks you through building a complete plugin from scratch.
+This guide walks you through building a clean, production-ready plugin on Blank Board.
 
-## Prerequisites
+## Quick Summary of Plugin Rules
+- **UI Root**: Render all UI inside `api.container`.
+- **Drag & Resize**: Automatically provided by the core container.
+- **CSS**: Inject styles using `api.injectCSS(css)` (automatically scoped to your container).
+- **Storage**: Use `api.storage.get()` and `api.storage.set()` (automatically scoped to your plugin ID).
+- **Timers**: Use `api.setInterval()` and `api.setTimeout()` (automatically cleared on unload).
+- **Zero-Leak Cleanup**: The v5 core automatically cleans up event listeners, hooks, DOM elements, and timers!
 
-- A modern browser
-- A text editor
-- Blank Board running locally (`npx serve`)
+---
 
-## Step 1: Create the File
+## Step 1: Create the Plugin File
 
-```
-plugins/
-  └── my-plugin/
-       └── plugin.js
-```
-
-## Step 2: Export `meta` and `setup`
-
-```javascript
-// plugins/my-plugin/plugin.js
-
-export const meta = {
-  id: 'my-plugin',
-  name: 'My First Plugin',
-  version: '0.1.0',
-  compat: '>=3.3.0'
-};
-
-export function setup(api) {
-  // Your code here
-}
-
-export function teardown() {
-  // Cleanup (optional but recommended)
-}
-```
-
-### The `meta` Object
-
-| Field | Required | Description |
-|-------|----------|-------------|
-| `id` | ✅ | Unique identifier. Use kebab-case |
-| `name` | ✅ | Display name in Plugin Manager |
-| `version` | ✅ | Semantic version |
-| `compat` | ❌ | Core version compatibility range |
-
-## Step 3: Build Your UI
-
-Use the managed container for standard plugins:
-
-```javascript
-export function setup(api) {
-  const container = api.container;
-  container.innerHTML = `
-    <div style="padding: 20px; background: white; border-radius: 12px;">
-      <h3 style="margin: 0 0 10px 0;">My Plugin</h3>
-      <p>Hello from my first plugin!</p>
-    </div>
-  `;
-  // Container is already draggable and resizable!
-}
-```
-
-Or create your own element for more control:
-
-```javascript
-export function setup(api) {
-  const box = document.createElement('div');
-  box.className = 'plugin-box';
-  box.style.cssText = `
-    left: 100px;
-    top: 100px;
-    width: 300px;
-    padding: 20px;
-    background: white;
-    border-radius: 12px;
-  `;
-
-  box.innerHTML = `
-    <h3 style="margin:0 0 10px 0;">My Plugin</h3>
-    <p>Hello from my first plugin!</p>
-  `;
-
-  api.boardEl.appendChild(box);
-  api.makeDraggable(box);
-  api.makeResizable(box);
-}
-```
-
-## Step 4: Add Storage
-
-Use plugin-scoped storage for clean key management:
-
-```javascript
-let currentApi = null;
-
-export function setup(api) {
-  currentApi = api;
-  const container = api.container;
-
-  // Restore saved position
-  const pos = api.storage.getForPlugin(meta.id, 'pos');
-  if (pos) {
-    container.style.left = pos.left + 'px';
-    container.style.top = pos.top + 'px';
-  }
-
-  container.innerHTML = `
-    <div style="padding: 20px; background: white; border-radius: 12px;">
-      <p>Drag me — I remember my position!</p>
-    </div>
-  `;
-
-  // Save position on drag end
-  api.bus.on('plugin:dragend', ({ el }) => {
-    if (el.dataset.pluginId === meta.id) {
-      api.storage.setForPlugin(meta.id, 'pos', {
-        left: parseInt(el.style.left),
-        top: parseInt(el.style.top)
-      });
-    }
-  });
-}
-```
-
-## Step 5: Add Event Communication
-
-```javascript
-let currentApi = null;
-
-export function setup(api) {
-  currentApi = api;
-  const container = api.container;
-
-  let count = api.storage.getForPlugin(meta.id, 'count') || 0;
-
-  container.innerHTML = `
-    <div style="padding: 24px; text-align: center; background: white; border-radius: 12px;">
-      <div style="font-size: 14px; color: #888;">Counter</div>
-      <div id="count" style="font-size: 48px; font-weight: 700; margin: 16px 0;">${count}</div>
-      <button id="inc" style="padding: 10px 24px; font-size: 18px; cursor: pointer;">+</button>
-    </div>
-  `;
-
-  container.querySelector('#inc').addEventListener('click', () => {
-    count++;
-    container.querySelector('#count').textContent = count;
-    api.storage.setForPlugin(meta.id, 'count', count);
-    api.bus.emit('counter:changed', { value: count });
-  });
-}
-```
-
-## Step 6: Inject Scoped CSS
-
-```javascript
-export function setup(api) {
-  api.injectCSS(meta.id, `
-    .my-counter {
-      background: linear-gradient(135deg, #667eea, #764ba2);
-      color: white;
-      padding: 24px;
-      border-radius: 16px;
-      text-align: center;
-    }
-    .my-counter button {
-      background: rgba(255,255,255,0.2);
-      border: none;
-      color: white;
-      padding: 10px 24px;
-      border-radius: 8px;
-      font-size: 18px;
-      cursor: pointer;
-    }
-    .my-counter button:hover {
-      background: rgba(255,255,255,0.3);
-    }
-  `);
-
-  const container = api.container;
-  container.innerHTML = `
-    <div class="my-counter">
-      <div style="font-size: 14px; opacity: 0.8;">Counter</div>
-      <div id="count" style="font-size: 48px; font-weight: 700; margin: 16px 0;">0</div>
-      <button id="increment">+</button>
-    </div>
-  `;
-}
-```
-
-## Step 7: Handle Cleanup
-
-```javascript
-let currentApi = null;
-
-export function setup(api) {
-  currentApi = api;
-  // ... setup code ...
-}
-
-export function teardown() {
-  currentApi?.removeCSS(meta.id);
-  console.log('Plugin cleaned up');
-}
-```
-
-## Step 8: Show Notifications
-
-```javascript
-export function setup(api) {
-  const container = api.container;
-  container.innerHTML = `
-    <div style="padding: 20px; text-align: center;">
-      <button id="notify">Notify me!</button>
-    </div>
-  `;
-
-  container.querySelector('#notify').addEventListener('click', () => {
-    api.notify('Button clicked!', 'success', 3000);
-  });
-}
-```
-
-## Step 9: Install and Test
-
-### Option A: Manual Install
-
-1. Right-click the board → Plugin Manager
-2. Click **Install via URL**
-3. Enter ID and URL: `http://localhost:3000/plugins/my-plugin/plugin.js`
-4. Click **Install**
-
-### Option B: Debug in Console
-
-```javascript
-// In browser DevTools:
-await window.blankBoard.api.installPlugin(
-  'my-plugin',
-  'http://localhost:3000/plugins/my-plugin/plugin.js',
-  'My Plugin'
-);
-```
-
-## Debugging
-
-Open browser DevTools:
-
-```javascript
-// Access the core API
-window.blankBoard.api.registry.getAll();
-window.blankBoard.api.version;  // → "4.0.0"
-
-// Emit test events
-window.blankBoard.bus.emit('test', { hello: true });
-
-// Check storage
-window.blankBoard.api.storage.list();
-
-// Reload a plugin
-await window.blankBoard.api.reloadPlugin('my-plugin');
-```
-
-## Complete Example
-
-Here's a full plugin using all the patterns above:
+Create a standalone JavaScript ES Module (e.g. `counter-widget.js`):
 
 ```javascript
 export const meta = {
-  id: 'my-awesome-plugin',
-  name: 'My Awesome Plugin',
-  version: '1.0.0',
-  compat: '>=3.3.0'
+  id: 'counter-widget',
+  name: 'Quick Counter',
+  version: '1.0.0'
 };
 
-let currentApi = null;
-
 export function setup(api) {
-  currentApi = api;
-
-  // Inject scoped styles
-  api.injectCSS(meta.id, `
-    .maw-widget {
-      background: #1a1a2e;
-      color: #eee;
-      padding: 24px;
-      border-radius: 16px;
-      font-family: system-ui, sans-serif;
+  // 1. Inject scoped styles
+  api.injectCSS(`
+    .counter-card {
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }
-    .maw-btn {
-      background: #7c6fff;
-      color: white;
-      border: none;
-      padding: 8px 16px;
+    .counter-display {
+      font-size: 32px;
+      font-weight: 700;
+      color: #7c6fff;
+    }
+    .counter-controls {
+      display: flex;
+      gap: 8px;
+    }
+    .counter-btn {
+      background: #f0f2f5;
+      border: 1px solid #dcdfe6;
+      padding: 6px 14px;
       border-radius: 8px;
+      font-weight: 600;
       cursor: pointer;
-      margin-top: 12px;
+      transition: background 0.15s;
+    }
+    .counter-btn:hover {
+      background: #e4e7ed;
     }
   `);
 
-  // Restore state
-  const count = api.storage.getForPlugin(meta.id, 'count') || 0;
-  const pos = api.storage.getForPlugin(meta.id, 'pos');
+  // 2. Set default window size
+  api.window.setSize(240, 180);
 
-  // Container
+  // 3. Restore persisted state
+  let count = api.storage.get('count') || 0;
+
+  // 4. Render UI inside api.container
   const container = api.container;
-  if (pos) {
-    container.style.left = pos.left + 'px';
-    container.style.top = pos.top + 'px';
-  }
-
   container.innerHTML = `
-    <div class="maw-widget">
-      <h3 style="margin: 0 0 8px 0;">Awesome Plugin</h3>
-      <div>Count: <span id="maw-count">${count}</span></div>
-      <button class="maw-btn" id="maw-inc">+ Increment</button>
+    <div class="counter-card">
+      <div class="counter-display" id="count-val">${count}</div>
+      <div class="counter-controls">
+        <button class="counter-btn" id="dec-btn">-</button>
+        <button class="counter-btn" id="inc-btn">+</button>
+        <button class="counter-btn" id="reset-btn">↺</button>
+      </div>
     </div>
   `;
 
-  container.querySelector('#maw-inc').addEventListener('click', () => {
-    const el = container.querySelector('#maw-count');
-    const newCount = parseInt(el.textContent) + 1;
-    el.textContent = newCount;
-    api.storage.setForPlugin(meta.id, 'count', newCount);
-    api.bus.emit('counter:changed', { value: newCount });
-    api.notify(`Count: ${newCount}`, 'info', 1500);
-  });
+  const display = container.querySelector('#count-val');
 
-  // Save position on drag
-  api.bus.on('plugin:dragend', ({ el }) => {
-    if (el.dataset.pluginId === meta.id) {
-      api.storage.setForPlugin(meta.id, 'pos', {
-        left: parseInt(el.style.left),
-        top: parseInt(el.style.top)
-      });
-    }
+  function updateCount(val) {
+    count = val;
+    display.textContent = count;
+    api.storage.set('count', count);
+  }
+
+  // 5. Attach event listeners
+  container.querySelector('#inc-btn').addEventListener('click', () => updateCount(count + 1));
+  container.querySelector('#dec-btn').addEventListener('click', () => updateCount(count - 1));
+  container.querySelector('#reset-btn').addEventListener('click', () => updateCount(0));
+
+  // 6. Listen to global events
+  api.bus.on('board:restarted', () => {
+    api.notify('Counter ready!', 'info');
   });
 }
 
 export function teardown() {
-  currentApi?.removeCSS(meta.id);
+  // Optional: The core handles 100% of event, timer, and DOM cleanup automatically!
 }
 ```
 
-<CardGroup cols={2}>
-  <Card title="Persisting Data" icon="database" href="/guides/persisting-data">
-    Deep dive into storage patterns
-  </Card>
-  <Card title="Plugin Communication" icon="comments" href="/guides/plugin-communication">
-    Events, hooks, and patterns
-  </Card>
-</CardGroup>
+---
+
+## Step 2: Testing Your Plugin Locally
+
+1. Serve Blank Board locally:
+   ```bash
+   npx serve Another/
+   ```
+2. Open `http://localhost:3000` in your browser.
+3. Right-click on the board to open the **Plugin Manager**.
+4. Click **Install via URL** and input your local URL or relative path:
+   ```
+   ./plugins/counter-widget.js
+   ```
+5. Your widget will instantly appear on the canvas!
+
+---
+
+## Step 3: Publishing to the Community Store
+
+1. Push your plugin file to your public GitHub repository.
+2. Fork the [`blank-board-plugins`](https://github.com/dheeraz101/Empty_Plugins) repository.
+3. Add your plugin entry to `plugins.json`:
+   ```json
+   {
+     "id": "counter-widget",
+     "name": "Quick Counter",
+     "url": "https://raw.githubusercontent.com/username/my-plugins/main/counter-widget.js",
+     "author": "Your Name",
+     "description": "A lightweight, stylish counter widget with persistent storage.",
+     "icon": "🔢",
+     "date": "2026-08-17"
+   }
+   ```
+4. Open a Pull Request! Once merged, all Blank Board users can install your plugin with 1 click from the Discovery store.

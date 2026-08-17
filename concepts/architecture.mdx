@@ -1,154 +1,135 @@
 ---
-title: Architecture
-description: "How the Blank Board micro-kernel works"
+title: Architecture & Micro-Kernel v5.0
+description: "How the Blank Board indestructible micro-kernel works"
 ---
 
 ## Overview
 
-Blank Board uses a **micro-kernel** architecture. The kernel handles bootstrapping and plugin loading. Everything else is a plugin.
+Blank Board is designed around an **indestructible micro-kernel** architecture. The host application (`index.html` + `core/`) is a lightweight, ultra-stable container deployed to Netlify. All tools, widgets, themes, and even the Plugin Manager itself are loaded dynamically from GitHub as raw ES modules.
 
 ```mermaid
 graph TD
-    A[index.html] --> B[core/core.js]
-    B --> C[core/api.js]
-    B --> D[core/eventBus.js]
-    B --> E[Plugin Loader]
-    E --> F[Plugin A]
-    E --> G[Plugin B]
-    E --> H[Plugin N]
-    F -.->|event bus| G
-    G -.->|event bus| H
+    A["index.html (Netlify Shell)"] --> B["core/core.js (Micro-Kernel v5)"]
+    B --> C["core/api.js (Scoped Sandboxes)"]
+    B --> D["core/eventBus.js (Event Broker)"]
+    B --> E["core/serviceRegistry.js (Inter-Plugin RPC)"]
+    B --> F["Offline Code Cache (IndexedDB)"]
+    B --> G["Safe Mode & Crash Recovery"]
+    
+    B --> H["System Plugins (Empty_Plugins)"]
+    H --> H1["Plugin Manager"]
+    H --> H2["Rollback Manager"]
+    H --> H3["Logger"]
+    
+    B --> I["Community Plugins (Plugins)"]
+    I --> I1["Music Player"]
+    I --> I2["Layout Engine"]
+    I --> I3["Games & Tools"]
+    
+    C -.->|Zero-Leak Auto Cleanup| H
+    C -.->|Zero-Leak Auto Cleanup| I
 ```
 
-## Core Files
+---
 
-### `index.html`
+## Core Pillars of the v5.0 Engine
 
-The only static HTML file. Contains:
+### 1. Scoped Plugin Sandboxes
+When a plugin loads, the core does not give it a shared, mutable API object. Instead, the core generates a dedicated **Scoped Sandbox instance** (`createPluginSandbox`):
+- **Locked Container**: `api.container` is tied directly to the plugin's ID. There is no async race condition.
+- **Zero-Leak Auto-Disposal**: Every event subscription (`api.bus.on`), hook registration (`api.registerHook`), keyboard shortcut (`api.registerShortcut`), timer (`api.setInterval`), and CSS stylesheet (`api.injectCSS`) is recorded in an internal disposal registry. When a plugin is toggled off or deleted, the core **automatically disposes 100% of its resources**.
+- **Scoped Storage**: `api.storage.get()` and `api.storage.set()` automatically namespace keys under `plugin:{id}:{key}`.
 
-- A `#board` div (100vw × 100vh) with a CSS grid background
-- Base styles for `.plugin-box` (positioned, draggable containers)
-- A single `<script type="module">` that boots `core/core.js`
+---
 
-```html
-<div id="board"></div>
-<script type="module" src="core/core.js"></script>
-```
+### 2. Safe Mode & Crash Recovery
+If an external plugin has a syntax error, infinite loop, or unhandled crash on startup:
+1. **Manual Safe Mode**: Hold <kbd>Shift</kbd> during reload or add `?safemode=1` to the URL.
+2. **Crash-Loop Auto-Guard**: The core tracks boot intervals in `sessionStorage`. If the board detects 2 rapid reloads in under 2.5 seconds, it automatically engages **Safe Mode**.
+3. **Recovery Experience**: In Safe Mode, community plugins are paused, and only the **Plugin Manager** is booted with a prominent recovery banner allowing you to disable or fix the problematic plugin.
 
-### `core/core.js` — Bootstrap
+---
 
-The entry point. On load:
+### 3. Offline Code Cache & Instant Startup
+To eliminate GitHub raw latency and rate-limiting:
+1. When a plugin is fetched, the core caches the raw JavaScript code in **IndexedDB** (`BlankBoardCodeCache`).
+2. On subsequent page visits, the cached plugin code executes immediately with **0ms network delay**.
+3. If an internet connection is available, the core checks for updates in the background (stale-while-revalidate) and refreshes the cache seamlessly.
 
-1. Creates the **EventBus** instance
-2. Creates a **storage** adapter (localStorage wrapper)
-3. Calls `createApi()` to build the plugin API (version `"4.0.0"`)
-4. Loads the **plugin registry** from localStorage
-5. Auto-installs or re-enables the **Plugin Manager** if missing/disabled
-6. Iterates through enabled plugins and loads each via dynamic `import()`
-7. Handles CORS by fetching remote plugin code and loading via blob URLs
-8. Deduplicates the registry
-9. Emits `board:allPluginsLoaded` after all plugins load
-10. Attaches management methods (`togglePlugin`, `deletePlugin`, `installPlugin`, `reloadPlugin`, `restart`)
-11. Exposes `window.blankBoard = { bus, api }` for debugging
+---
 
-### `core/api.js` — API Factory
-
-Creates the API object passed to every plugin's `setup()` function. Includes:
-
-- Container management (`container` getter, `getContainer`, `mountPlugin`, `undockPlugin`, `updatePlugin`)
-- CSS injection (`injectCSS`, `removeCSS`)
-- UI systems (toolbar, sidebar, context menu, notifications, modals, shortcuts)
-- Hooks system (`registerHook`, `useHook`, `removeHook`)
-- Storage (global + plugin-scoped)
-- Permissions system
-- Drag & resize helpers
-- Utility functions (`debounce`, `throttle`)
-
-### `core/eventBus.js` — Event System
-
-A minimal pub/sub with: `on()`, `off()`, `once()`, `emit()`, `removeAll()`.
-
-## Plugin File Format
-
-Every plugin is a standalone ES module:
+### 4. Inter-Plugin Service Registry (`api.services`)
+Beyond one-way events and flat hooks, the v5.0 core provides a centralized **Service Registry** for Inter-Plugin RPC:
+- Plugins can register reusable engines (e.g. `audio-engine`, `physics-2d`, `syntax-highlighter`).
+- Other plugins can consume these services asynchronously and safely.
 
 ```javascript
-export const meta = {
-  id: 'my-plugin',
-  name: 'My Plugin',
-  version: '1.0.0',
-  compat: '>=3.3.0'   // optional
-};
-
+// Plugin A (Provider)
 export function setup(api) {
-  // Initialize your plugin
+  api.services.register('math-utils', {
+    add: (a, b) => a + b,
+    multiply: (a, b) => a * b
+  });
 }
 
-export function teardown() {
-  // Optional: clean up on unload
-}
-```
-
-## Plugin Registry
-
-Stored in localStorage under `board-plugins-registry`:
-
-```json
-[
-  {
-    "id": "plugin-manager",
-    "url": "https://raw.githubusercontent.com/dheeraz101/Empty_Plugins/refs/heads/main/plugin-manager.js",
-    "name": "Plugin Manager",
-    "enabled": true
+// Plugin B (Consumer)
+export function setup(api) {
+  const math = api.services.get('math-utils');
+  if (math) {
+    console.log('Result:', math.add(10, 20)); // 30
   }
-]
+}
 ```
 
-### Registry Fields
+---
 
-| Field | Required | Description |
-|-------|----------|-------------|
-| `id` | ✅ | Unique plugin identifier |
-| `url` | ✅ | URL to the `.js` file |
-| `name` | ✅ | Display name |
-| `enabled` | ✅ | Whether the plugin is loaded |
-| `source` | ❌ | `'system'`, `'registry'`, or `'manual'` |
+### 5. Hybrid Storage Engine
+- **LocalStorage**: Ultra-fast key-value persistence for small settings, preferences, and window states.
+- **IndexedDB (`api.storage.db`)**: Async key-value storage capable of storing hundreds of megabytes of binary blobs, audio tracks, canvas drawing buffers, and game save files without `QuotaExceededError`.
 
-### Lifecycle
+---
 
-| Action | What Happens |
-|--------|-------------|
-| First load | Plugin Manager auto-installed from GitHub |
-| Subsequent loads | Reads from localStorage (persists changes) |
-| Install | Appends to registry → saves → dynamic import |
-| Toggle off | Calls `teardown()` → removes container → saves |
-| Toggle on | Loads via `import()` → calls `setup(api)` |
-| Delete | Unloads → removes from registry → saves |
-| Restart | Unloads all → reloads all enabled |
+## The Plugin Lifecycle
 
-## Plugin Loading (CORS Handling)
-
-For cross-origin plugin URLs, the core:
-
-1. Fetches the plugin code via `fetch()`
-2. Creates a `Blob` with `application/javascript` type
-3. Generates a blob URL via `URL.createObjectURL()`
-4. Imports the blob URL
-5. Revokes the blob URL after import
-
-This allows loading plugins from any CORS-enabled server (like GitHub raw URLs).
-
-## File Tree
-
-```
-├── index.html              # Static shell
-├── core/
-│   ├── core.js             # Bootstrap & plugin loader
-│   ├── api.js              # API factory
-│   └── eventBus.js         # Pub/sub system
-└── (plugins are hosted externally)
+```mermaid
+sequenceDiagram
+    participant K as Micro-Kernel
+    participant S as Scoped Sandbox
+    participant P as Plugin Module
+    
+    K->>K: Validate & check cache
+    K->>S: Create Scoped Sandbox (ID, Disposables)
+    K->>P: Call setup(scopedApi) with 6s timeout
+    P->>S: Inject CSS, build UI in api.container
+    P-->>K: setup() resolved
+    K->>K: Emit 'plugin:loaded'
+    
+    Note over K,P: When Plugin is Disabled or Deleted
+    K->>P: Call teardown() (if exported)
+    K->>S: Execute _dispose() (auto-cleans timers, listeners, DOM)
+    K->>K: Emit 'plugin:unloaded'
 ```
 
-<Info>
-  Plugins are no longer bundled in the main repository. They live in the [community plugin repo](https://github.com/dheeraz101/Empty_Plugins) and are loaded via URL.
-</Info>
+---
+
+## Directory Structure
+
+```
+Empty/
+├── Another/                    # Host Application (Netlify)
+│   ├── index.html              # Static HTML shell & CSS tokens
+│   └── core/
+│       ├── core.js             # Micro-kernel v5 bootstrapper
+│       ├── api.js              # Scoped sandbox factory & UI systems
+│       └── eventBus.js         # Pub/sub event broker
+├── Empty_Plugins/              # System Plugins (GitHub)
+│   ├── plugin-manager.js       # Community Store & Workspace Manager
+│   ├── rollback-manager.js     # Version Snapshot & Rollback Engine
+│   ├── logger.js               # Lifecycle Telemetry & Event Inspector
+│   └── plugins.json            # Official Registry Catalog
+├── Plugins/                    # Community Plugins (GitHub)
+│   ├── music-player.js         # Audio player & playlist
+│   ├── layout.js               # Column docking & grid engine
+│   └── ... (27+ widgets)
+└── Documentations/             # Mintlify Documentation Site
+```

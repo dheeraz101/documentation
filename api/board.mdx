@@ -1,101 +1,137 @@
 ---
-title: api.boardEl
-description: "The board DOM element where plugins render"
+title: Canvas & Containers (api.boardEl & api.container)
+description: "Understanding the canvas viewport and managed plugin containers"
 ---
 
 ## Overview
 
-`api.boardEl` is the `#board` DOM element — the full-viewport canvas where all plugins render their UI.
+In Blank Board, the canvas is an open, transformable workspace (`api.boardEl`), and every plugin renders inside a secure, managed container (`api.container`).
 
-```javascript
-const box = document.createElement('div');
-box.textContent = 'Hello!';
-api.boardEl.appendChild(box);
-```
+<Warning>
+  **Strict Rule:** Plugins MUST render their UI inside `api.container`. Never append directly to `api.boardEl` or `document.body` unless you are building a full-board theme or fullscreen canvas mode.
+</Warning>
 
-## Type
+---
 
-`HTMLElement`
+## `api.container` (Primary UI Root)
 
-## Usage
-
-This is where your plugin creates and appends UI elements.
+Every plugin automatically receives an isolated, managed container element.
 
 ```javascript
 export function setup(api) {
-  const widget = document.createElement('div');
-  widget.className = 'plugin-box';
-  widget.style.cssText = `
-    position: absolute;
-    left: 100px;
-    top: 100px;
-    width: 300px;
-    padding: 20px;
-    background: white;
-    border-radius: 12px;
+  const container = api.container;
+
+  // Build your UI inside your container
+  container.innerHTML = `
+    <div class="my-widget-card">
+      <h2>My Widget</h2>
+      <button id="action-btn">Click Me</button>
+    </div>
   `;
-  widget.innerHTML = '<p>My plugin UI</p>';
 
-  api.boardEl.appendChild(widget);
+  container.querySelector('#action-btn').addEventListener('click', () => {
+    api.notify('Action executed!', 'success');
+  });
 }
 ```
 
-## CSS Grid Background
+### Container Guarantees
+- **Auto-Positioned & Sized**: Automatically placed on the canvas with smooth CSS transitions.
+- **Draggable & Resizable**: Drag handle on the header/body, resize handle at the bottom-right corner.
+- **Focus & Z-Index Elevation**: Clicking a container automatically brings it to the top of the window stack (`.bb-focused`).
+- **Scoped CSS Protection**: CSS injected via `api.injectCSS()` is automatically scoped to your container `[data-plugin-id="..."]`.
+- **Zero-Leak Cleanup**: When unloaded, the container and all internal elements are destroyed automatically by the core.
 
-The board has a built-in CSS grid pattern:
+---
 
-```css
-#board {
-  width: 100vw;
-  height: 100vh;
-  background-image:
-    linear-gradient(#ddd 1px, transparent 1px),
-    linear-gradient(90deg, #ddd 1px, transparent 1px);
-  background-size: 40px 40px;
-}
-```
+## `api.window` (Window & Canvas Controls)
 
-## The `plugin-box` Class
-
-Use the `plugin-box` class for standard card styling:
-
-```css
-.plugin-box {
-  position: absolute;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-  border-radius: 8px;
-  background: white;
-  cursor: move;
-  user-select: none;
-}
-```
-
-<Info>
-  The `plugin-box` class is defined in `index.html`. It gives you rounded corners, a shadow, and `cursor: move`.
-</Info>
-
-## Removing Elements
-
-Always clean up when your plugin is unloaded. Export a `teardown()` function:
+Plugins can programmatically control their window position, size, and focus:
 
 ```javascript
+export function setup(api) {
+  // Bring window to front
+  api.window.bringToFront();
+
+  // Set position on board (x, y in pixels)
+  api.window.setPosition(100, 150);
+
+  // Set dimensions
+  api.window.setSize(400, 300);
+
+  // Get current bounding rectangle
+  const rect = api.window.getBounds();
+  console.log('Window dimensions:', rect.width, rect.height);
+}
+```
+
+---
+
+## `api.boardEl` (Canvas Root)
+
+`api.boardEl` is the root `#board` DOM element spanning `100vw × 100vh`. It is typically used for reading viewport dimensions, attaching canvas listeners, or applying board-wide theme attributes.
+
+### Canvas Modes & Grid Styling
+
+The board supports multiple built-in canvas background patterns:
+
+```javascript
+// Switch grid pattern
+api.boardEl.dataset.grid = 'dots'; // 'dots' | 'none' | default lines
+
+// Switch canvas mode
+api.boardEl.dataset.mode = 'fullscreen-app'; // Takes over full viewport
+```
+
+### Board CSS Custom Variables
+
+Board themes can customize CSS variables on `:root` or `#board`:
+
+| CSS Variable | Default | Purpose |
+|---|---|---|
+| `--board-bg` | `#f8f9fa` | Background color of the canvas |
+| `--grid-line` | `#e2e4e9` | Grid pattern color |
+| `--grid-size` | `40px` | Spacing of the grid lines/dots |
+| `--accent-color` | `#7c6fff` | System primary accent |
+| `--window-bg` | `#ffffff` | Plugin container background color |
+| `--window-radius` | `14px` | Plugin container corner radius |
+
+---
+
+## Complete Plugin Skeleton
+
+```javascript
+export const meta = {
+  id: 'my-custom-tool',
+  name: 'Custom Tool',
+  version: '1.0.0'
+};
+
+export function setup(api) {
+  // 1. Inject scoped styles
+  api.injectCSS(`
+    .my-box {
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+  `);
+
+  // 2. Render inside managed container
+  const container = api.container;
+  container.innerHTML = `
+    <div class="my-box">
+      <h3>${meta.name}</h3>
+      <p>Loaded successfully!</p>
+    </div>
+  `;
+
+  // 3. Optional: Set initial window size
+  api.window.setSize(300, 200);
+}
+
 export function teardown() {
-  myElement.remove();
+  // Core automatically cleans up containers, styles, bus listeners, and timers!
 }
-```
-
-Or listen for the event:
-
-```javascript
-api.bus.on('plugin:unload', (id) => {
-  if (id === meta.id) myElement.remove();
-});
-```
-
-## Version
-
-The API exposes a version string:
-
-```javascript
-console.log(api.version);  // → "4.0.0"
 ```

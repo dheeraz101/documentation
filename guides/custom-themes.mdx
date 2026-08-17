@@ -1,0 +1,67 @@
+---
+title: "Blueprint: Creating Custom Themes"
+description: "How to build board-wide themes, custom shaders, and color schemes"
+---
+
+## Overview
+
+Theme plugins transform the visual aesthetic of the canvas, change window frame styles, adjust grid density, and define custom CSS tokens.
+
+To style the entire canvas and window elements, theme plugins use `api.injectCSS(css, { global: true })`.
+
+---
+
+## Complete Custom Theme Plugin
+
+```javascript
+export const meta = {
+  id: 'cyberpunk-neon-theme',
+  name: 'Cyberpunk Neon Theme',
+  version: '1.0.0'
+};
+
+export function setup(api) {
+  // Inject global CSS targeting the board and system variables
+  api.injectCSS(`
+    :root {
+      --board-bg: #090a10 !important;
+      --grid-line: rgba(0, 240, 255, 0.12) !important;
+      --grid-size: 32px !important;
+      --accent-color: #ff007f !important;
+      --window-bg: #121420 !important;
+      --window-radius: 12px !important;
+      --window-shadow: 0 0 20px rgba(0, 240, 255, 0.15) !important;
+      --window-shadow-focused: 0 0 30px rgba(255, 0, 127, 0.3) !important;
+    }
+
+    #board {
+      background-color: var(--board-bg);
+      background-image: 
+        linear-gradient(var(--grid-line) 1px, transparent 1px),
+        linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+    }
+
+    .bb-plugin-container {
+      border: 1px solid rgba(0, 240, 255, 0.3);
+      color: #e0f7fa;
+    }
+
+    .bb-plugin-container.bb-focused {
+      border-color: #ff007f;
+    }
+  `, { global: true });
+
+  // Optional: Add a toolbar theme toggle button
+  api.registerToolbarButton({
+    id: 'cyberpunk-theme-toggle',
+    label: '⚡ Neon Cyber',
+    onClick: () => {
+      api.notify('Cyberpunk theme active!', 'info');
+    }
+  });
+}
+
+export function teardown() {
+  // Core automatically removes the global style element and toolbar button!
+}
+```

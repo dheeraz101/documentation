@@ -1,0 +1,77 @@
+---
+title: api.services
+description: "Inter-plugin service registration and consumption API"
+---
+
+## Overview
+
+`api.services` allows plugins to register shared utility instances, game engines, audio processors, or data adapters for other plugins to consume.
+
+---
+
+## `api.services.register(serviceName, instance)`
+
+Register an object or class instance under a global service name.
+
+```javascript
+api.services.register('markdown-parser', {
+  parse(text) {
+    return text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+  }
+});
+```
+
+| Parameter | Type | Description |
+|---|---|---|
+| `serviceName` | `string` | Unique identifier for the service (e.g. `'audio-engine'`, `'physics'`) |
+| `instance` | `object` | The service API object containing methods and properties |
+
+<Info>
+  Services registered by a plugin are automatically cleaned up and removed when the plugin is torn down.
+</Info>
+
+---
+
+## `api.services.get(serviceName)`
+
+Retrieve a registered service by name. Returns `null` if the service is not currently registered.
+
+```javascript
+const parser = api.services.get('markdown-parser');
+if (parser) {
+  const html = parser.parse('**Bold Text**');
+}
+```
+
+| Parameter | Type | Description |
+|---|---|---|
+| `serviceName` | `string` | The name of the service to retrieve |
+
+**Returns:** `object | null`
+
+---
+
+## `api.services.has(serviceName)`
+
+Check whether a service is currently registered and available.
+
+```javascript
+if (api.services.has('audio-engine')) {
+  console.log('Audio engine is active!');
+}
+```
+
+**Returns:** `boolean`
+
+---
+
+## `api.services.list()`
+
+Returns an array of all currently registered services and their provider plugin IDs.
+
+```javascript
+const activeServices = api.services.list();
+// => [{ name: 'audio-engine', pluginId: 'music-player' }, ...]
+```
+
+**Returns:** `Array<{ name: string, pluginId: string }>`

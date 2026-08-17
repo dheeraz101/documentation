@@ -1,0 +1,72 @@
+---
+title: "Guide: Workspace Bundles (.blankboard)"
+description: "How to export, import, and share entire board workspaces"
+---
+
+## Overview
+
+Blank Board workspaces can be packaged into portable `.blankboard` JSON bundles containing:
+- All installed and active plugins
+- Plugin settings, configurations, and themes
+- Board layout coordinates and window sizes
+
+This allows you to back up your board, share configurations with friends, or switch between pre-configured setups (e.g. *Gaming Station*, *Music Production*, *Developer Command Center*).
+
+---
+
+## Exporting a Workspace
+
+1. Right-click anywhere on the board to open the **Plugin Manager**.
+2. Click **Export Workspace**.
+3. Your browser will download a file named `workspace-YYYY-MM-DD.blankboard`.
+
+You can also trigger exports programmatically:
+
+```javascript
+window.blankBoard.core.exportWorkspace();
+```
+
+---
+
+## Importing a Workspace
+
+1. Open the **Plugin Manager**.
+2. Click **Import Workspace**.
+3. Select your `.blankboard` or `.json` file.
+4. Blank Board will automatically restore all plugins, layout positions, and settings, and restart the board.
+
+Programmatically:
+
+```javascript
+await window.blankBoard.core.importWorkspace(jsonWorkspaceString);
+```
+
+---
+
+## `.blankboard` Schema Specification
+
+```json
+{
+  "name": "Blank Board Workspace",
+  "version": "5.0.0",
+  "exportedAt": "2026-08-17T12:00:00.000Z",
+  "registry": [
+    {
+      "id": "plugin-manager",
+      "name": "Plugin Manager",
+      "url": "https://raw.githubusercontent.com/dheeraz101/Empty_Plugins/refs/heads/main/plugin-manager.js",
+      "enabled": true
+    },
+    {
+      "id": "music-player",
+      "name": "Music Player",
+      "url": "https://raw.githubusercontent.com/dheeraz101/Plugins/refs/heads/main/music-player.js",
+      "enabled": true
+    }
+  ],
+  "storageDump": {
+    "plugin:music-player:volume": 0.5,
+    "plugin:dark-theme:active": true
+  }
+}
+```

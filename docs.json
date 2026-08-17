@@ -36,6 +36,7 @@
               "concepts/architecture",
               "concepts/plugin-system",
               "concepts/event-bus",
+              "concepts/services",
               "concepts/hooks",
               "concepts/storage"
             ]
@@ -46,12 +47,19 @@
         "tab": "API Reference",
         "groups": [
           {
-            "group": "Core",
+            "group": "Core & Lifecycle",
             "pages": [
               "api/board",
               "api/bus",
               "api/events",
+              "api/timers",
               "api/storage"
+            ]
+          },
+          {
+            "group": "Services & RPC",
+            "pages": [
+              "api/services"
             ]
           },
           {
@@ -63,7 +71,7 @@
             ]
           },
           {
-            "group": "Extensibility",
+            "group": "Extensibility & UI",
             "pages": [
               "api/hooks",
               "api/css",
@@ -71,7 +79,7 @@
             ]
           },
           {
-            "group": "Interaction",
+            "group": "Interaction & Windows",
             "pages": [
               "api/draggable",
               "api/utils"
@@ -88,7 +96,16 @@
               "guides/first-plugin",
               "guides/persisting-data",
               "guides/plugin-communication",
+              "guides/workspace-bundles",
               "guides/publishing"
+            ]
+          },
+          {
+            "group": "Transformations & Blueprints",
+            "pages": [
+              "guides/building-a-game",
+              "guides/building-media-apps",
+              "guides/custom-themes"
             ]
           }
         ]
@@ -97,11 +114,14 @@
         "tab": "Plugins",
         "groups": [
           {
-            "group": "Official Plugins",
+            "group": "System & Official Plugins",
             "pages": [
-              "plugins/sticky-note",
+              "plugins/plugin-manager",
+              "plugins/rollback-manager",
+              "plugins/logger",
+              "plugins/layout-engine",
               "plugins/clock",
-              "plugins/plugin-manager"
+              "plugins/sticky-note"
             ]
           }
         ]

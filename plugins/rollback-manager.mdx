@@ -1,0 +1,26 @@
+---
+title: Rollback Manager
+description: "Snapshot capturing and instant version rollback for Blank Board plugins"
+---
+
+## Overview
+
+The **Rollback Manager** is a system plugin that automatically captures code snapshots of your plugins and allows you to instantly roll back to previous versions if an update introduces bugs.
+
+---
+
+## Features
+
+- **Automated Snapshots**: Captures snapshots whenever a plugin is updated.
+- **Offline Data URLs**: Snapshots are saved as self-contained `data:` URLs so they persist even across reloads.
+- **Rollback Buttons**: Seamlessly injects `↩ Rollback` buttons into the Plugin Manager card interface.
+- **Manage Snapshots Modal**: Dedicated snapshot manager accessible directly from the sidebar.
+
+---
+
+## Usage
+
+1. Open the **Plugin Manager**.
+2. If a plugin has a previous snapshot available, you will see an orange **↩ Rollback** button on its card.
+3. Click **↩ Rollback** to revert the plugin back to its snapshot version.
+4. Click **Manage Snapshots** in the sidebar to review all stored snapshots, clear old snapshots, or take manual snapshots.
